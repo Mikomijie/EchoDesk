@@ -227,17 +227,11 @@ export default function Lecturer() {
         )}
 
         {/* INFO CARD */}
-        <div style={{
-          background: 'rgba(212,169,76,0.06)',
-          border: '0.5px solid rgba(212,169,76,0.2)',
-          borderRadius: 16, padding: '18px 22px'
-        }}>
-          <p style={{ fontSize: 12, color: '#4a5568', lineHeight: 1.7, margin: 0 }}>
-            <strong style={{ color: '#0A1930' }}>Note:</strong> This panel only shows the live transcript for monitoring.
-            The actual transcription is powered by <code>transcribe.py</code> running separately.
-            Make sure <code>server.js</code> and <code>transcribe.py</code> are both running before starting a lecture.
-          </p>
-        </div>
+        <div style={{ textAlign: 'center', marginTop: 20 }}>
+  <p style={{ fontSize: 10, color: '#94a3b8', margin: 0 }}>
+    Requires server.js and transcribe.py running
+  </p>
+</div>
 
       </div>
     </div>
