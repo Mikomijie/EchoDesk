@@ -1,3 +1,9 @@
+import os
+import certifi
+import ssl
+ssl._create_default_https_context = ssl._create_unverified_context
+os.environ['SSL_CERT_FILE'] = certifi.where()
+os.environ['REQUESTS_CA_BUNDLE'] = certifi.where()
 import assemblyai as aai
 from assemblyai.streaming.v3 import (
     StreamingClient,

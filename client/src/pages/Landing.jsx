@@ -3,8 +3,8 @@ import { useNavigate } from 'react-router-dom'
 
 const demoLines = [
   "A lecturer speaks. EchoDesk listens...",
-  "Every word transcribed, offline, in real time...",
-  "No internet. No app. Just the lecture, readable.",
+  "Every word transcribed, zero cost ofr students, in real time...",
+  "Zero Cost for students. Just the lecture, readable.",
   "Built for deaf students at UNIBEN and beyond.",
   "Communication, made visible for everyone."
 ]
@@ -18,8 +18,8 @@ const steps = [
   },
   {
     num: '2',
-    title: 'Speech becomes text, offline',
-    desc: 'The laptop transcribes every word locally using AI. No internet, no data, no cloud.',
+    title: 'Speech becomes text, with zero cost for students',
+    desc: 'The laptop transcribes every word locally using AI. Zero Cost for Students, no cloud.',
     shade: 'rgba(212,169,76,0.3)'
   },
   {
@@ -173,7 +173,7 @@ export default function Landing() {
                 borderRadius: '50%', display: 'inline-block',
                 animation: 'pulse 1.5s infinite'
               }} />
-              Fully offline
+              Zero cost for students
             </span>
             <a href="#how" className="nav-links" style={{
   fontSize: 13, fontWeight: 500, color: '#0A1930',
@@ -238,7 +238,7 @@ export default function Landing() {
             opacity: heroVisible ? 1 : 0,
             transition: 'opacity 0.7s ease 0.35s'
           }}>
-            Zero internet · Zero data cost · No app to install
+            Zero cost for students · No app to install · No data needed
           </p>
 
           <div className="hero-btns" style={{
@@ -564,7 +564,7 @@ export default function Landing() {
                 lineHeight: 1.7, maxWidth: 460,
                 margin: '0 auto 36px'
               }}>
-                Connect to EchoDesk WiFi and tap below. Captions start instantly.
+                Get your session code from your lecturer and tap below to join instantly.
               </p>
               <button
                 onClick={() => navigate('/captions')}

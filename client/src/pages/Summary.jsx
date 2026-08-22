@@ -41,7 +41,6 @@ export default function Summary() {
       }
     })
     const keywords = Object.entries(freq).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([word]) => word)
-
     const starters = [
       'What is the significance of',
       'Explain the concept of',
@@ -58,6 +57,24 @@ export default function Summary() {
     navigator.clipboard.writeText(transcript)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
+  }
+
+  const downloadFile = (content, filename) => {
+    const blob = new Blob([content], { type: 'text/plain' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const downloadAll = () => {
+    const divider = '='.repeat(40)
+    const keyPoints = summary.map((p, i) => `${i + 1}. ${p}`).join('\n')
+    const practiceQs = questions.map((q, i) => `${i + 1}. ${q}`).join('\n')
+    const content = `ECHODESK LECTURE SUMMARY\n${divider}\n\nKEY POINTS\n${keyPoints}\n\n${divider}\n\nPRACTICE QUESTIONS\n${practiceQs}\n\n${divider}\n\nFULL TRANSCRIPT\n${transcript}`
+    downloadFile(content, 'echodesk-full-lecture.txt')
   }
 
   return (
@@ -277,7 +294,8 @@ export default function Summary() {
               }}>
                 <div style={{
                   display: 'flex', alignItems: 'center',
-                  justifyContent: 'space-between', marginBottom: 16
+                  justifyContent: 'space-between', marginBottom: 16,
+                  flexWrap: 'wrap', gap: 8
                 }}>
                   <span style={{
                     fontSize: 15, fontWeight: 700, color: '#0A1930',
@@ -285,20 +303,46 @@ export default function Summary() {
                   }}>
                     Full transcript
                   </span>
-                  <button
-                    onClick={copyTranscript}
-                    style={{
-                      background: copied ? 'rgba(34,197,94,0.1)' : 'rgba(10,25,48,0.06)',
-                      color: copied ? '#16a34a' : '#0A1930',
-                      fontFamily: "'Inter', sans-serif",
-                      fontSize: 12, fontWeight: 600,
-                      padding: '6px 14px', borderRadius: 8,
-                      border: 'none', cursor: 'pointer',
-                      transition: 'all 0.2s'
-                    }}
-                  >
-                    {copied ? 'Copied!' : 'Copy transcript'}
-                  </button>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    <button
+                      onClick={copyTranscript}
+                      style={{
+                        background: copied ? 'rgba(34,197,94,0.1)' : 'rgba(10,25,48,0.06)',
+                        color: copied ? '#16a34a' : '#0A1930',
+                        fontFamily: "'Inter', sans-serif",
+                        fontSize: 12, fontWeight: 600,
+                        padding: '6px 14px', borderRadius: 8,
+                        border: 'none', cursor: 'pointer',
+                        transition: 'all 0.2s'
+                      }}
+                    >
+                      {copied ? 'Copied!' : 'Copy'}
+                    </button>
+                    <button
+                      onClick={() => downloadFile(transcript, 'echodesk-transcript.txt')}
+                      style={{
+                        background: 'rgba(10,25,48,0.06)', color: '#0A1930',
+                        fontFamily: "'Inter', sans-serif",
+                        fontSize: 12, fontWeight: 600,
+                        padding: '6px 14px', borderRadius: 8,
+                        border: 'none', cursor: 'pointer'
+                      }}
+                    >
+                      Download transcript
+                    </button>
+                    <button
+                      onClick={downloadAll}
+                      style={{
+                        background: '#0A1930', color: '#D4A94C',
+                        fontFamily: "'Plus Jakarta Sans', sans-serif",
+                        fontSize: 12, fontWeight: 700,
+                        padding: '6px 14px', borderRadius: 8,
+                        border: 'none', cursor: 'pointer'
+                      }}
+                    >
+                      Download all
+                    </button>
+                  </div>
                 </div>
                 <p style={{
                   fontSize: 13, color: '#4a5568',
