@@ -3,29 +3,29 @@ import { useNavigate } from 'react-router-dom'
 
 const demoLines = [
   "A lecturer speaks. EchoDesk listens...",
-  "Every word transcribed, zero cost ofr students, in real time...",
-  "Zero Cost for students. Just the lecture, readable.",
-  "Built for deaf students at UNIBEN and beyond.",
+  "Every word transcribed, in real time...",
+  "No app. No data cost. Just the lecture, readable.",
+  "Built for deaf students across Nigerian universities.",
   "Communication, made visible for everyone."
 ]
 
 const steps = [
   {
     num: '1',
-    title: 'Lecturer wears the mic',
-    desc: 'A small wireless lapel mic clips to their shirt. They teach normally. Nothing changes.',
+    title: 'Lecturer starts a session',
+    desc: 'The lecturer opens EchoDesk, clicks Start Lecture, and gets a unique session code to share with students.',
     shade: 'rgba(212,169,76,0.15)'
   },
   {
     num: '2',
-    title: 'Speech becomes text, with zero cost for students',
-    desc: 'The laptop transcribes every word locally using AI. Zero Cost for Students, no cloud.',
+    title: 'Speech becomes text instantly',
+    desc: 'Speech is transcribed in real time by AI and broadcast instantly to all students in the session.',
     shade: 'rgba(212,169,76,0.3)'
   },
   {
     num: '3',
     title: 'Students read it live',
-    desc: 'Open a webpage, connect to EchoDesk WiFi. Captions stream in real time instantly.',
+    desc: 'Enter the session code and open EchoDesk on any browser. Captions stream in real time instantly.',
     shade: 'rgba(212,169,76,0.55)'
   },
   {
@@ -117,19 +117,18 @@ export default function Landing() {
         @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.4;transform:scale(0.75)} }
         @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
         * { box-sizing: border-box; }
-       @media (max-width: 768px) {
-  .steps-grid { grid-template-columns: 1fr 1fr !important; }
-  .nav-links { display: none !important; }
-  .nav-offline { display: none !important; }
-  .nav-logo-text { font-size: 14px !important; }
-  .nav-logo-icon { width: 28px !important; height: 28px !important; }
-  .nav-join-btn { font-size: 11px !important; padding: 7px 14px !important; }
+        @media (max-width: 768px) {
+          .steps-grid { grid-template-columns: 1fr 1fr !important; }
           .stat-block { flex-direction: column !important; }
           .stat-divider { display: none !important; }
-          .hero-btns { flex-direction: column !important; width: 100% !important; }
-          .hero-btns a, .hero-btns button { width: 100% !important; text-align: center !important; }
           .stats-bar { flex-direction: column !important; }
           .stats-bar-item { border-right: none !important; border-bottom: 0.5px solid rgba(10,25,48,0.07) !important; }
+          .role-cards { grid-template-columns: 1fr !important; }
+          .nav-links { display: none !important; }
+          .nav-offline { display: none !important; }
+          .nav-logo-text { font-size: 14px !important; }
+          .nav-logo-icon { width: 28px !important; height: 28px !important; }
+          .nav-join-btn { font-size: 11px !important; padding: 7px 14px !important; }
         }
         @media (max-width: 480px) {
           .steps-grid { grid-template-columns: 1fr !important; }
@@ -149,25 +148,25 @@ export default function Landing() {
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <div className="nav-logo-icon" style={{
-  width: 34, height: 34, background: '#0A1930', borderRadius: 9,
-  display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
-}}>
+              width: 34, height: 34, background: '#0A1930', borderRadius: 9,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
+            }}>
               <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
                 <path d="M2 10 Q5 4 8 10 Q11 16 14 10 Q16 6 18 10" stroke="#D4A94C" strokeWidth="2.2" fill="none" strokeLinecap="round" />
               </svg>
             </div>
             <span className="nav-logo-text" style={{
-  fontWeight: 800, fontSize: 17, letterSpacing: '-0.4px',
-  color: '#0A1930', fontFamily: "'Plus Jakarta Sans', sans-serif"
-}}>
+              fontWeight: 800, fontSize: 17, letterSpacing: '-0.4px',
+              color: '#0A1930', fontFamily: "'Plus Jakarta Sans', sans-serif"
+            }}>
               Echo<span style={{ color: '#D4A94C' }}>Desk</span>
             </span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
-           <span className="nav-offline" style={{
-  fontSize: 11, color: '#4a5568', fontWeight: 500,
-  display: 'flex', alignItems: 'center', gap: 5
-}}>
+            <span className="nav-offline" style={{
+              fontSize: 11, color: '#4a5568', fontWeight: 500,
+              display: 'flex', alignItems: 'center', gap: 5
+            }}>
               <span style={{
                 width: 6, height: 6, background: '#22c55e',
                 borderRadius: '50%', display: 'inline-block',
@@ -176,21 +175,21 @@ export default function Landing() {
               Zero cost for students
             </span>
             <a href="#how" className="nav-links" style={{
-  fontSize: 13, fontWeight: 500, color: '#0A1930',
-  textDecoration: 'none', opacity: 0.55
-}}>
+              fontSize: 13, fontWeight: 500, color: '#0A1930',
+              textDecoration: 'none', opacity: 0.55
+            }}>
               How it works
             </a>
             <button
-  className="nav-join-btn"
-  onClick={() => navigate('/captions')}
-  style={{
-    background: '#0A1930', color: '#D4A94C',
-    fontFamily: "'Plus Jakarta Sans', sans-serif",
-    fontSize: 13, fontWeight: 700, padding: '9px 20px',
-    borderRadius: 10, border: 'none', cursor: 'pointer'
-  }}
->
+              className="nav-join-btn"
+              onClick={() => navigate('/captions')}
+              style={{
+                background: '#0A1930', color: '#D4A94C',
+                fontFamily: "'Plus Jakarta Sans', sans-serif",
+                fontSize: 13, fontWeight: 700, padding: '9px 20px',
+                borderRadius: 10, border: 'none', cursor: 'pointer'
+              }}
+            >
               Join Lecture
             </button>
           </div>
@@ -229,7 +228,7 @@ export default function Landing() {
             transform: heroVisible ? 'translateY(0)' : 'translateY(18px)',
             transition: 'opacity 0.7s ease 0.25s, transform 0.7s ease 0.25s'
           }}>
-            Built for deaf students at UNIBEN, and every classroom that forgot them.
+            Built for deaf students in every lecture hall that forgot them.
           </p>
 
           <p style={{
@@ -241,47 +240,87 @@ export default function Landing() {
             Zero cost for students · No app to install · No data needed
           </p>
 
-          <div className="hero-btns" style={{
-            display: 'flex', gap: 12, marginBottom: 52,
-            flexWrap: 'wrap', justifyContent: 'center',
+          {/* ROLE CARDS */}
+          <div className="role-cards" style={{
+            display: 'grid',
+            gridTemplateColumns: '1fr 1fr',
+            gap: 16, marginBottom: 52,
+            width: '100%', maxWidth: 500,
             opacity: heroVisible ? 1 : 0,
             transform: heroVisible ? 'translateY(0)' : 'translateY(12px)',
             transition: 'opacity 0.7s ease 0.45s, transform 0.7s ease 0.45s'
           }}>
-            <button
+            {/* STUDENT CARD */}
+            <div
               onClick={() => navigate('/captions')}
               style={{
+                background: '#0A1930', borderRadius: 16,
+                padding: '24px 20px', textAlign: 'center',
+                cursor: 'pointer', transition: 'transform 0.15s',
+                border: '0.5px solid rgba(10,25,48,0.1)'
+              }}
+              onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-3px)'}
+              onMouseLeave={e => e.currentTarget.style.transform = 'translateY(0)'}
+            >
+              <div style={{ fontSize: 28, marginBottom: 10 }}>🎓</div>
+              <div style={{
+                fontSize: 14, fontWeight: 800, color: 'white',
+                fontFamily: "'Plus Jakarta Sans', sans-serif", marginBottom: 6
+              }}>
+                I'm a Student
+              </div>
+              <div style={{
+                fontSize: 11, color: 'rgba(255,255,255,0.5)',
+                lineHeight: 1.5, marginBottom: 16
+              }}>
+                Join a live lecture with a session code
+              </div>
+              <div style={{
+                background: '#D4A94C', color: '#0A1930',
+                fontFamily: "'Plus Jakarta Sans', sans-serif",
+                fontSize: 12, fontWeight: 800,
+                padding: '9px 16px', borderRadius: 8,
+                display: 'inline-block'
+              }}>
+                Join Lecture
+              </div>
+            </div>
+
+            {/* LECTURER CARD */}
+            <div
+              onClick={() => navigate('/lecturer')}
+              style={{
+                background: 'white', borderRadius: 16,
+                padding: '24px 20px', textAlign: 'center',
+                cursor: 'pointer', transition: 'transform 0.15s',
+                border: '0.5px solid rgba(10,25,48,0.1)'
+              }}
+              onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-3px)'}
+              onMouseLeave={e => e.currentTarget.style.transform = 'translateY(0)'}
+            >
+              <div style={{ fontSize: 28, marginBottom: 10 }}>👨‍🏫</div>
+              <div style={{
+                fontSize: 14, fontWeight: 800, color: '#0A1930',
+                fontFamily: "'Plus Jakarta Sans', sans-serif", marginBottom: 6
+              }}>
+                I'm a Lecturer
+              </div>
+              <div style={{
+                fontSize: 11, color: '#4a5568',
+                lineHeight: 1.5, marginBottom: 16
+              }}>
+                Start a new session for your class
+              </div>
+              <div style={{
                 background: '#0A1930', color: '#D4A94C',
                 fontFamily: "'Plus Jakarta Sans', sans-serif",
-                fontSize: 15, fontWeight: 800, padding: '15px 38px',
-                borderRadius: 12, border: 'none', cursor: 'pointer',
-                boxShadow: '0 4px 20px rgba(10,25,48,0.18)',
-                transition: 'transform 0.15s, background 0.15s'
-              }}
-              onMouseEnter={e => {
-                e.currentTarget.style.background = '#152a4a'
-                e.currentTarget.style.transform = 'translateY(-2px)'
-              }}
-              onMouseLeave={e => {
-                e.currentTarget.style.background = '#0A1930'
-                e.currentTarget.style.transform = 'translateY(0)'
-              }}
-            >
-              Join Lecture
-            </button>
-            <a href="#how" style={{
-              background: 'white', color: '#0A1930',
-              fontFamily: "'Plus Jakarta Sans', sans-serif",
-              fontSize: 15, fontWeight: 700, padding: '15px 38px',
-              borderRadius: 12, border: '0.5px solid rgba(10,25,48,0.15)',
-              textDecoration: 'none', display: 'inline-block',
-              transition: 'background 0.15s'
-            }}
-            onMouseEnter={e => e.currentTarget.style.background = '#f0ebe1'}
-            onMouseLeave={e => e.currentTarget.style.background = 'white'}
-            >
-              See how it works
-            </a>
+                fontSize: 12, fontWeight: 800,
+                padding: '9px 16px', borderRadius: 8,
+                display: 'inline-block'
+              }}>
+                Start Lecture
+              </div>
+            </div>
           </div>
 
           {/* CAPTION DEMO */}
@@ -303,10 +342,7 @@ export default function Landing() {
                 <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#ff5f57' }} />
                 <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#ffbd2e' }} />
                 <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#28c840' }} />
-                <span style={{
-                  fontSize: 11, fontWeight: 500, color: '#0A1930',
-                  marginLeft: 8, opacity: 0.4
-                }}>
+                <span style={{ fontSize: 11, fontWeight: 500, color: '#0A1930', marginLeft: 8, opacity: 0.4 }}>
                   EchoDesk · Live Captions
                 </span>
               </div>
@@ -323,10 +359,7 @@ export default function Landing() {
                 Live
               </span>
             </div>
-            <div style={{
-              fontSize: 18, fontWeight: 500, color: '#0A1930',
-              lineHeight: 1.65, minHeight: 58
-            }}>
+            <div style={{ fontSize: 18, fontWeight: 500, color: '#0A1930', lineHeight: 1.65, minHeight: 58 }}>
               {displayed}
               <span style={{
                 display: 'inline-block', width: 2, height: 20,
@@ -351,10 +384,7 @@ export default function Landing() {
               color: '#D4A94C', lineHeight: 1,
               fontFamily: "'Plus Jakarta Sans', sans-serif"
             }}>9M+</div>
-            <div style={{
-              fontSize: 12, color: 'rgba(255,255,255,0.4)',
-              marginTop: 8, lineHeight: 1.5
-            }}>
+            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', marginTop: 8, lineHeight: 1.5 }}>
               Nigerians are deaf or hard of hearing
             </div>
           </div>
@@ -363,10 +393,10 @@ export default function Landing() {
           }} />
           <div style={{ padding: 'clamp(28px, 5vw, 52px) clamp(20px, 8vw, 10vw)', flex: 1 }}>
             <p style={{
-              fontSize: 16, color: 'rgba(255,255,255,0.78)',
+              fontSize: 15, color: 'rgba(255,255,255,0.78)',
               lineHeight: 1.85, margin: 0, maxWidth: 640
             }}>
-              At UNIBEN and most Nigerian universities, there are zero sign language
+              Across Nigerian tertiary institutions, there are zero sign language
               interpreters or captioning systems in any lecture hall. Students sit for
               two hours, understanding nothing. Not because of inability, but because
               the infrastructure to include them was never built.
@@ -393,7 +423,7 @@ export default function Landing() {
                 and teach myself from the textbook, I am three times behind everyone else."
               </p>
               <span style={{ fontSize: 12, color: '#4a5568', fontWeight: 600 }}>
-                Emily, Management Science graduate, University of Benin
+                Emily, Management Science graduate, Nigerian federal university
               </span>
             </div>
           </FadeIn>
@@ -459,10 +489,7 @@ export default function Landing() {
                   }}>
                     {step.title}
                   </div>
-                  <div style={{
-                    fontSize: 12, color: '#4a5568',
-                    lineHeight: 1.75, textDecoration: 'none'
-                  }}>
+                  <div style={{ fontSize: 12, color: '#4a5568', lineHeight: 1.75 }}>
                     {step.desc}
                   </div>
                 </div>
@@ -482,7 +509,7 @@ export default function Landing() {
               {[
                 { num: '9.5M+', label: 'Deaf Nigerians' },
                 { num: '255', label: 'Universities with zero accessibility' },
-                { num: '0', label: 'Interpreters at UNIBEN' },
+                { num: '0', label: 'Interpreters in most Nigerian lecture halls' },
               ].map((stat, i) => (
                 <div key={i} className="stats-bar-item" style={{
                   flex: 1, minWidth: 160, padding: '28px 24px', textAlign: 'center',
@@ -495,9 +522,7 @@ export default function Landing() {
                   }}>
                     {stat.num}
                   </div>
-                  <div style={{
-                    fontSize: 12, color: '#4a5568', marginTop: 6, lineHeight: 1.5
-                  }}>
+                  <div style={{ fontSize: 12, color: '#4a5568', marginTop: 6, lineHeight: 1.5 }}>
                     {stat.label}
                   </div>
                 </div>
@@ -533,74 +558,69 @@ export default function Landing() {
 
       {/* CTA - FULL WIDTH */}
       <FadeIn>
-        <div style={{ paddingBottom: 0 }}>
-          <div className="cta-inner" style={{
-            background: '#0A1930',
-            padding: '72px 10vw', textAlign: 'center',
-            position: 'relative', overflow: 'hidden'
+        <div style={{
+          background: '#0A1930',
+          padding: '72px 10vw', textAlign: 'center',
+          position: 'relative', overflow: 'hidden'
+        }}>
+          <svg style={{
+            position: 'absolute', top: 0, left: 0,
+            width: '100%', height: '100%',
+            opacity: 0.03, pointerEvents: 'none'
           }}>
-            <svg style={{
-              position: 'absolute', top: 0, left: 0,
-              width: '100%', height: '100%',
-              opacity: 0.03, pointerEvents: 'none'
+            <defs>
+              <pattern id="ctadots" x="0" y="0" width="24" height="24" patternUnits="userSpaceOnUse">
+                <circle cx="1.2" cy="1.2" r="1.2" fill="white" />
+              </pattern>
+            </defs>
+            <rect width="100%" height="100%" fill="url(#ctadots)" />
+          </svg>
+          <div style={{ position: 'relative', zIndex: 1 }}>
+            <h2 style={{
+              fontFamily: "'Plus Jakarta Sans', sans-serif",
+              fontSize: 'clamp(24px, 3vw, 40px)', fontWeight: 800,
+              color: 'white', marginBottom: 14, letterSpacing: '-0.4px'
             }}>
-              <defs>
-                <pattern id="ctadots" x="0" y="0" width="24" height="24" patternUnits="userSpaceOnUse">
-                  <circle cx="1.2" cy="1.2" r="1.2" fill="white" />
-                </pattern>
-              </defs>
-              <rect width="100%" height="100%" fill="url(#ctadots)" />
-            </svg>
-            <div style={{ position: 'relative', zIndex: 1 }}>
-              <h2 style={{
+              Ready to follow your lecture?
+            </h2>
+            <p style={{
+              fontSize: 16, color: 'rgba(255,255,255,0.5)',
+              lineHeight: 1.7, maxWidth: 460,
+              margin: '0 auto 36px'
+            }}>
+              Get your session code from your lecturer and join instantly.
+            </p>
+            <button
+              onClick={() => navigate('/captions')}
+              style={{
+                background: '#D4A94C', color: '#0A1930',
                 fontFamily: "'Plus Jakarta Sans', sans-serif",
-                fontSize: 'clamp(24px, 3vw, 40px)', fontWeight: 800,
-                color: 'white', marginBottom: 14, letterSpacing: '-0.4px'
-              }}>
-                Ready to follow your lecture?
-              </h2>
-              <p style={{
-                fontSize: 16, color: 'rgba(255,255,255,0.5)',
-                lineHeight: 1.7, maxWidth: 460,
-                margin: '0 auto 36px'
-              }}>
-                Get your session code from your lecturer and tap below to join instantly.
-              </p>
-              <button
-                onClick={() => navigate('/captions')}
-                style={{
-                  background: '#D4A94C', color: '#0A1930',
-                  fontFamily: "'Plus Jakarta Sans', sans-serif",
-                  fontSize: 16, fontWeight: 800, padding: '17px 52px',
-                  borderRadius: 12, border: 'none', cursor: 'pointer',
-                  boxShadow: '0 4px 24px rgba(212,169,76,0.28)',
-                  transition: 'transform 0.15s, opacity 0.15s',
-                  display: 'block', margin: '0 auto 24px'
-                }}
-                onMouseEnter={e => {
-                  e.currentTarget.style.opacity = '0.9'
-                  e.currentTarget.style.transform = 'translateY(-2px)'
-                }}
-                onMouseLeave={e => {
-                  e.currentTarget.style.opacity = '1'
-                  e.currentTarget.style.transform = 'translateY(0)'
-                }}
-              >
-                Join Lecture
-              </button>
-              <div style={{
-                display: 'flex', justifyContent: 'center',
-                gap: 28, flexWrap: 'wrap'
-              }}>
-                {['No setup required', 'No login needed', 'Zero data cost'].map(t => (
-                  <span key={t} style={{
-                    fontSize: 12, color: 'rgba(255,255,255,0.45)',
-                    display: 'flex', alignItems: 'center', gap: 5
-                  }}>
-                    <span style={{ color: '#22c55e', fontSize: 14 }}>✓</span> {t}
-                  </span>
-                ))}
-              </div>
+                fontSize: 16, fontWeight: 800, padding: '17px 52px',
+                borderRadius: 12, border: 'none', cursor: 'pointer',
+                boxShadow: '0 4px 24px rgba(212,169,76,0.28)',
+                transition: 'transform 0.15s, opacity 0.15s',
+                display: 'block', margin: '0 auto 24px'
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.opacity = '0.9'
+                e.currentTarget.style.transform = 'translateY(-2px)'
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.opacity = '1'
+                e.currentTarget.style.transform = 'translateY(0)'
+              }}
+            >
+              Join Lecture
+            </button>
+            <div style={{ display: 'flex', justifyContent: 'center', gap: 28, flexWrap: 'wrap' }}>
+              {['No setup required', 'No login needed', 'Zero data cost'].map(t => (
+                <span key={t} style={{
+                  fontSize: 12, color: 'rgba(255,255,255,0.45)',
+                  display: 'flex', alignItems: 'center', gap: 5
+                }}>
+                  <span style={{ color: '#22c55e', fontSize: 14 }}>✓</span> {t}
+                </span>
+              ))}
             </div>
           </div>
         </div>
@@ -611,14 +631,10 @@ export default function Landing() {
         borderTop: '0.5px solid rgba(10,25,48,0.08)',
         padding: '24px 28px', textAlign: 'center'
       }}>
-        <div style={{
-          display: 'flex', alignItems: 'center',
-          justifyContent: 'center', gap: 8
-        }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
           <div style={{
             width: 24, height: 24, background: '#0A1930',
-            borderRadius: 6, display: 'flex',
-            alignItems: 'center', justifyContent: 'center'
+            borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center'
           }}>
             <svg width="12" height="12" viewBox="0 0 20 20" fill="none">
               <path d="M2 10 Q5 4 8 10 Q11 16 14 10 Q16 6 18 10"
