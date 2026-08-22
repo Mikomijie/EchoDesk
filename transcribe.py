@@ -4,6 +4,7 @@ import ssl
 ssl._create_default_https_context = ssl._create_unverified_context
 os.environ['SSL_CERT_FILE'] = certifi.where()
 os.environ['REQUESTS_CA_BUNDLE'] = certifi.where()
+
 import assemblyai as aai
 from assemblyai.streaming.v3 import (
     StreamingClient,
@@ -14,7 +15,6 @@ from assemblyai.streaming.v3 import (
 )
 import sounddevice as sd
 import requests
-import os
 import queue
 from dotenv import load_dotenv
 
@@ -26,9 +26,12 @@ SAMPLE_RATE = 16000
 full_transcript = ""
 audio_queue = queue.Queue()
 
+# PASTE YOUR SESSION CODE HERE after creating session in browser
+SESSION_CODE = input("Enter your session code from the browser: ").strip().upper()
+
 def send_to_server(text):
     try:
-        requests.post(SERVER_URL, json={"text": text})
+        requests.post(SERVER_URL, json={"text": text, "code": SESSION_CODE})
     except Exception as e:
         print(f"Error sending to server: {e}")
 
@@ -36,7 +39,7 @@ def on_turn(self, event: TurnEvent):
     global full_transcript
     if event.transcript and event.end_of_turn:
         full_transcript += event.transcript + "\n"
-        print(full_transcript)
+        print(f"Transcript: {event.transcript}")
         send_to_server(full_transcript)
 
 def on_error(self, error):
@@ -52,7 +55,9 @@ def audio_generator():
         yield audio_queue.get()
 
 def main():
+    print(f"Session code: {SESSION_CODE}")
     print("Connecting to AssemblyAI...")
+
     client = StreamingClient(
         StreamingClientOptions(
             api_key=API_KEY,
@@ -72,10 +77,17 @@ def main():
 
     print("Listening... Speak now. Press Ctrl+C to stop.")
 
-    with sd.RawInputStream(samplerate=SAMPLE_RATE, blocksize=3200, dtype='int16',
-                            channels=1, callback=audio_callback):
+    with sd.RawInputStream(
+        samplerate=SAMPLE_RATE,
+        blocksize=3200,
+        dtype='int16',
+        channels=1,
+        callback=audio_callback
+    ):
         try:
             client.stream(audio_generator())
+        except KeyboardInterrupt:
+            print("\nStopping...")
         finally:
             client.disconnect(terminate=True)
 

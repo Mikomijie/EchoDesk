@@ -9,48 +9,39 @@ export default function Summary() {
   const [loading, setLoading] = useState(true)
   const [copied, setCopied] = useState(false)
 
+  const getServerBase = () => {
+    return window.location.hostname === 'localhost'
+      ? 'http://localhost:3000'
+      : 'https://echodesk-server.onrender.com'
+  }
+
   useEffect(() => {
     const stored = sessionStorage.getItem('echodesk_transcript')
-    if (stored && stored.trim().length > 0) {
+    if (stored && stored.trim().length > 20) {
       setTranscript(stored)
       generateSummary(stored)
     } else {
       setLoading(false)
-      setSummary([])
     }
   }, [])
 
-  const generateSummary = (text) => {
-    const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 20)
-    const summaryLength = Math.min(5, Math.ceil(sentences.length * 0.3) || 1)
-    const step = Math.max(1, Math.floor(sentences.length / summaryLength))
-    const summaryPoints = []
-    for (let i = 0; i < summaryLength; i++) {
-      const idx = i * step
-      if (sentences[idx]) summaryPoints.push(sentences[idx].trim())
+  const generateSummary = async (text) => {
+    try {
+      const response = await fetch(`${getServerBase()}/summarize`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ transcript: text })
+      })
+      const data = await response.json()
+      setSummary(data.summary || [])
+      setQuestions(data.questions || [])
+    } catch (err) {
+      console.error('Summary error:', err)
+      setSummary(['Could not generate summary. Please review the transcript below.'])
+      setQuestions([])
+    } finally {
+      setLoading(false)
     }
-    setSummary(summaryPoints)
-
-    const stopWords = new Set(['the','a','an','and','or','but','in','on','at','to','for','of','with','by','from','is','are','was','were','be','been','have','has','had','do','does','did','will','would','could','should','may','might','this','that','these','those','it','its','we','you','he','she','they','i','my','your','our','their','so','if','not','no','just','like','also','about','what','which','who','how','when','where','why'])
-    const words = text.toLowerCase().split(/\s+/)
-    const freq = {}
-    words.forEach(w => {
-      const clean = w.replace(/[^a-z]/g, '')
-      if (clean.length > 4 && !stopWords.has(clean)) {
-        freq[clean] = (freq[clean] || 0) + 1
-      }
-    })
-    const keywords = Object.entries(freq).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([word]) => word)
-    const starters = [
-      'What is the significance of',
-      'Explain the concept of',
-      'How does',
-      'What are the key points about',
-      'Describe the relationship between'
-    ]
-    const generatedQuestions = starters.slice(0, keywords.length).map((starter, i) => `${starter} ${keywords[i]}?`)
-    setQuestions(generatedQuestions)
-    setLoading(false)
   }
 
   const copyTranscript = () => {
@@ -93,14 +84,12 @@ export default function Summary() {
         backdropFilter: 'blur(14px)',
         borderBottom: '0.5px solid rgba(10,25,48,0.08)',
         padding: '12px 20px',
-        display: 'flex', alignItems: 'center',
-        justifyContent: 'space-between'
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <div style={{
             width: 30, height: 30, background: '#0A1930',
-            borderRadius: 8, display: 'flex',
-            alignItems: 'center', justifyContent: 'center'
+            borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center'
           }}>
             <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
               <path d="M2 10 Q5 4 8 10 Q11 16 14 10 Q16 6 18 10"
@@ -117,8 +106,7 @@ export default function Summary() {
         <div style={{
           display: 'flex', alignItems: 'center', gap: 6,
           background: 'rgba(212,169,76,0.1)', color: '#9a7520',
-          fontSize: 11, fontWeight: 600,
-          padding: '5px 12px', borderRadius: 20
+          fontSize: 11, fontWeight: 600, padding: '5px 12px', borderRadius: 20
         }}>
           Lecture ended
         </div>
@@ -152,7 +140,7 @@ export default function Summary() {
             Your lecture summary
           </h1>
           <p style={{ fontSize: 14, color: '#4a5568', lineHeight: 1.6 }}>
-            Here is what was covered in today's lecture, with practice questions to help you revise.
+            AI-generated summary and practice questions from today's lecture.
           </p>
         </div>
 
@@ -165,7 +153,12 @@ export default function Summary() {
               margin: '0 auto 16px',
               animation: 'spin 1s linear infinite'
             }} />
-            <p style={{ fontSize: 14, color: '#4a5568' }}>Generating your summary...</p>
+            <p style={{ fontSize: 14, color: '#4a5568' }}>
+              Generating your AI summary...
+            </p>
+            <p style={{ fontSize: 12, color: '#94a3b8', marginTop: 8 }}>
+              This takes a few seconds
+            </p>
           </div>
         ) : (
           <>
@@ -177,13 +170,11 @@ export default function Summary() {
               animation: 'fadeUp 0.6s ease 0.1s both'
             }}>
               <div style={{
-                display: 'flex', alignItems: 'center',
-                gap: 10, marginBottom: 20
+                display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20
               }}>
                 <div style={{
                   width: 32, height: 32, background: '#0A1930',
-                  borderRadius: 8, display: 'flex',
-                  alignItems: 'center', justifyContent: 'center'
+                  borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center'
                 }}>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
                     <path d="M9 12h6M9 16h6M9 8h6M5 4h14a1 1 0 011 1v14a1 1 0 01-1 1H5a1 1 0 01-1-1V5a1 1 0 011-1z"
@@ -196,13 +187,20 @@ export default function Summary() {
                 }}>
                   Key points covered
                 </span>
+                <span style={{
+                  marginLeft: 'auto', fontSize: 10, fontWeight: 600,
+                  background: 'rgba(212,169,76,0.12)', color: '#9a7520',
+                  padding: '3px 8px', borderRadius: 20
+                }}>
+                  AI Generated
+                </span>
               </div>
               {summary.length > 0 ? (
                 <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
                   {summary.map((point, i) => (
                     <li key={i} style={{
-                      display: 'flex', alignItems: 'flex-start',
-                      gap: 12, marginBottom: 14, paddingBottom: 14,
+                      display: 'flex', alignItems: 'flex-start', gap: 12,
+                      marginBottom: 14, paddingBottom: 14,
                       borderBottom: i < summary.length - 1
                         ? '0.5px solid rgba(10,25,48,0.06)' : 'none'
                     }}>
@@ -217,7 +215,7 @@ export default function Summary() {
                         </span>
                       </div>
                       <p style={{ fontSize: 14, color: '#0A1930', lineHeight: 1.7, margin: 0 }}>
-                        {point}.
+                        {point}
                       </p>
                     </li>
                   ))}
@@ -237,14 +235,11 @@ export default function Summary() {
                 animation: 'fadeUp 0.6s ease 0.2s both'
               }}>
                 <div style={{
-                  display: 'flex', alignItems: 'center',
-                  gap: 10, marginBottom: 20
+                  display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20
                 }}>
                   <div style={{
-                    width: 32, height: 32,
-                    background: 'rgba(212,169,76,0.15)',
-                    borderRadius: 8, display: 'flex',
-                    alignItems: 'center', justifyContent: 'center'
+                    width: 32, height: 32, background: 'rgba(212,169,76,0.15)',
+                    borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center'
                   }}>
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
                       <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22Z"
@@ -258,6 +253,13 @@ export default function Summary() {
                     fontFamily: "'Plus Jakarta Sans', sans-serif"
                   }}>
                     Practice questions
+                  </span>
+                  <span style={{
+                    marginLeft: 'auto', fontSize: 10, fontWeight: 600,
+                    background: 'rgba(212,169,76,0.15)', color: '#D4A94C',
+                    padding: '3px 8px', borderRadius: 20
+                  }}>
+                    AI Generated
                   </span>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -304,49 +306,35 @@ export default function Summary() {
                     Full transcript
                   </span>
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                    <button
-                      onClick={copyTranscript}
-                      style={{
-                        background: copied ? 'rgba(34,197,94,0.1)' : 'rgba(10,25,48,0.06)',
-                        color: copied ? '#16a34a' : '#0A1930',
-                        fontFamily: "'Inter', sans-serif",
-                        fontSize: 12, fontWeight: 600,
-                        padding: '6px 14px', borderRadius: 8,
-                        border: 'none', cursor: 'pointer',
-                        transition: 'all 0.2s'
-                      }}
-                    >
+                    <button onClick={copyTranscript} style={{
+                      background: copied ? 'rgba(34,197,94,0.1)' : 'rgba(10,25,48,0.06)',
+                      color: copied ? '#16a34a' : '#0A1930',
+                      fontFamily: "'Inter', sans-serif",
+                      fontSize: 12, fontWeight: 600, padding: '6px 14px',
+                      borderRadius: 8, border: 'none', cursor: 'pointer', transition: 'all 0.2s'
+                    }}>
                       {copied ? 'Copied!' : 'Copy'}
                     </button>
-                    <button
-                      onClick={() => downloadFile(transcript, 'echodesk-transcript.txt')}
-                      style={{
-                        background: 'rgba(10,25,48,0.06)', color: '#0A1930',
-                        fontFamily: "'Inter', sans-serif",
-                        fontSize: 12, fontWeight: 600,
-                        padding: '6px 14px', borderRadius: 8,
-                        border: 'none', cursor: 'pointer'
-                      }}
-                    >
+                    <button onClick={() => downloadFile(transcript, 'echodesk-transcript.txt')} style={{
+                      background: 'rgba(10,25,48,0.06)', color: '#0A1930',
+                      fontFamily: "'Inter', sans-serif",
+                      fontSize: 12, fontWeight: 600, padding: '6px 14px',
+                      borderRadius: 8, border: 'none', cursor: 'pointer'
+                    }}>
                       Download transcript
                     </button>
-                    <button
-                      onClick={downloadAll}
-                      style={{
-                        background: '#0A1930', color: '#D4A94C',
-                        fontFamily: "'Plus Jakarta Sans', sans-serif",
-                        fontSize: 12, fontWeight: 700,
-                        padding: '6px 14px', borderRadius: 8,
-                        border: 'none', cursor: 'pointer'
-                      }}
-                    >
+                    <button onClick={downloadAll} style={{
+                      background: '#0A1930', color: '#D4A94C',
+                      fontFamily: "'Plus Jakarta Sans', sans-serif",
+                      fontSize: 12, fontWeight: 700, padding: '6px 14px',
+                      borderRadius: 8, border: 'none', cursor: 'pointer'
+                    }}>
                       Download all
                     </button>
                   </div>
                 </div>
                 <p style={{
-                  fontSize: 13, color: '#4a5568',
-                  lineHeight: 1.8, margin: 0,
+                  fontSize: 13, color: '#4a5568', lineHeight: 1.8, margin: 0,
                   maxHeight: 200, overflowY: 'auto'
                 }}>
                   {transcript}
