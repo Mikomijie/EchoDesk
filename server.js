@@ -53,7 +53,7 @@ app.post('/summarize', async (req, res) => {
         'X-Title': 'EchoDesk'
       },
       body: JSON.stringify({
-        model: 'meta-llama/llama-3.1-8b-instruct:free',
+        model: 'openrouter/auto',
         messages: [
           {
             role: 'user',
@@ -90,7 +90,9 @@ QUESTIONS:
       })
     });
 
-    const data = await response.json();
+        const data = await response.json();
+        console.log('OpenRouter status:', response.status, 'data:', JSON.stringify(data).slice(0, 300));
+    console.log('OpenRouter full response:', JSON.stringify(data));
     const content = data.choices?.[0]?.message?.content || '';
 
     // Parse summary bullets
@@ -99,6 +101,7 @@ QUESTIONS:
 
     const summaryLines = summaryMatch
       ? summaryMatch[1].split('\n').filter(l => l.trim().startsWith('-')).map(l => l.replace(/^-\s*/, '').trim())
+      console.error('OpenRouter error details:', err.message, err.response?.status);
       : ['Summary could not be generated. Please review the transcript below.']
 
     const questionLines = questionsMatch
