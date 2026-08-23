@@ -33,9 +33,9 @@ function broadcastToStudents(sessionCode, message) {
   });
 }
 
-// Summarize endpoint using OpenRouter
 app.post('/summarize', async (req, res) => {
   const { transcript } = req.body;
+
   if (!transcript || transcript.trim().length < 50) {
     return res.json({
       summary: ['The transcript was too short to generate a meaningful summary.'],
@@ -90,18 +90,18 @@ QUESTIONS:
       })
     });
 
-        const data = await response.json();
-        console.log('OpenRouter status:', response.status, 'data:', JSON.stringify(data).slice(0, 300));
-    console.log('OpenRouter full response:', JSON.stringify(data));
-    const content = data.choices?.[0]?.message?.content || '';
+    const data = await response.json();
+    console.log('OpenRouter status:', response.status);
+    console.log('OpenRouter data:', JSON.stringify(data).slice(0, 500));
 
-    // Parse summary bullets
+    const content = data.choices?.[0]?.message?.content || '';
+    console.log('OpenRouter content:', content.slice(0, 300));
+
     const summaryMatch = content.match(/SUMMARY:\n([\s\S]*?)\n\nQUESTIONS:/);
     const questionsMatch = content.match(/QUESTIONS:\n([\s\S]*?)$/);
 
     const summaryLines = summaryMatch
       ? summaryMatch[1].split('\n').filter(l => l.trim().startsWith('-')).map(l => l.replace(/^-\s*/, '').trim())
-      console.error('OpenRouter error details:', err.message, err.response?.status);
       : ['Summary could not be generated. Please review the transcript below.']
 
     const questionLines = questionsMatch
@@ -111,7 +111,7 @@ QUESTIONS:
     res.json({ summary: summaryLines, questions: questionLines });
 
   } catch (err) {
-    console.error('OpenRouter error:', err);
+    console.error('OpenRouter error:', err.message);
     res.status(500).json({
       summary: ['Could not generate summary. Please review the full transcript below.'],
       questions: ['What were the main topics covered in this lecture?']
@@ -119,7 +119,6 @@ QUESTIONS:
   }
 });
 
-// Python transcriber posts here
 app.post('/broadcast', (req, res) => {
   const { text, code } = req.body;
   if (!text || !code) return res.status(400).json({ error: 'Missing text or code' });
@@ -187,10 +186,6 @@ wss.on('connection', (ws) => {
 
       console.log(`Session ended: ${sessionCode}`);
       delete sessions[sessionCode];
-    }
-
-    if (msg.type === 'audio_chunk') {
-      // Reserved for future direct audio streaming
     }
   });
 
