@@ -134,14 +134,7 @@ export default function Lecturer() {
             </p>
           </div>
 
-          <div style={{
-            background: 'rgba(34,197,94,0.08)',
-            border: '0.5px solid rgba(34,197,94,0.2)',
-            borderRadius: 12, padding: '12px 20px',
-            marginBottom: 16, fontSize: 13, color: '#16a34a', fontWeight: 600
-          }}>
-            Now run: python transcribe.py — and enter code {sessionCode}
-          </div>
+    
 
           <div style={{
             background: 'white', borderRadius: 16,
