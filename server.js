@@ -126,12 +126,13 @@ app.post('/broadcast', (req, res) => {
   const session = sessions[code.toUpperCase()];
   if (!session) return res.status(404).json({ error: 'Session not found' });
 
-  session.transcript = text;
+  // Append to transcript instead of replacing
+  session.transcript += text + ' ';
 
-  broadcastToStudents(code.toUpperCase(), { type: 'caption', text });
+  broadcastToStudents(code.toUpperCase(), { type: 'caption', text: session.transcript });
 
   if (session.lecturer && session.lecturer.readyState === WebSocket.OPEN) {
-    session.lecturer.send(JSON.stringify({ type: 'transcript_update', text }));
+    session.lecturer.send(JSON.stringify({ type: 'transcript_update', text: session.transcript }));
   }
 
   res.json({ ok: true });

@@ -1,17 +1,27 @@
 import { useEffect, useRef, useState } from 'react'
+import { AudioCapture } from '../utils/audioCapture'
 
 export default function Lecturer() {
   const [status, setStatus] = useState('idle')
   const [sessionCode, setSessionCode] = useState('')
   const [transcript, setTranscript] = useState('')
   const [studentCount, setStudentCount] = useState(0)
+  const [isRecording, setIsRecording] = useState(false)
   const wsRef = useRef(null)
+  const audioRef = useRef(null)
 
   const getServerUrl = () => {
     if (window.location.hostname === 'localhost') {
       return 'ws://localhost:3000'
     }
     return 'wss://echodesk-server.onrender.com'
+  }
+
+  const getServerBase = () => {
+    if (window.location.hostname === 'localhost') {
+      return 'http://localhost:3000'
+    }
+    return 'https://echodesk-server.onrender.com'
   }
 
   const startSession = () => {
@@ -29,14 +39,11 @@ export default function Lecturer() {
       if (msg.type === 'session_created') {
         setSessionCode(msg.code)
         setStatus('live')
+        startAudioCapture()
       }
 
       if (msg.type === 'transcript_update') {
         setTranscript(msg.text)
-      }
-
-      if (msg.type === 'student_joined') {
-        setStudentCount(c => c + 1)
       }
     }
 
@@ -45,16 +52,79 @@ export default function Lecturer() {
     }
   }
 
+  const startAudioCapture = async () => {
+  if (!audioRef.current) {
+    audioRef.current = new AudioCapture()
+  }
+
+  console.log('🎯 Starting audio capture...')
+  const success = await audioRef.current.start((text, isFinal) => {
+    if (isFinal) {
+      console.log('✅ Sending to students:', text)
+      broadcastTranscript(text)
+    }
+  })
+
+  if (success) {
+    setIsRecording(true)
+    console.log('✅ Recording started')
+  } else {
+    console.log('❌ Recording failed')
+    setStatus('error')
+  }
+}
+
+  const broadcastTranscript = (text) => {
+  if (!sessionCode || !text.trim()) return
+
+  // Update UI immediately
+  setTranscript(prev => {
+    const updated = prev + ' ' + text
+    console.log('📊 Transcript updated:', updated)
+    return updated
+  })
+
+  // Send to server
+  fetch(`${getServerBase()}/broadcast`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      text: text,
+      code: sessionCode
+    })
+  })
+  .then(res => res.json())
+  .then(data => console.log('✅ Broadcast sent:', data))
+  .catch(err => console.error('❌ Broadcast error:', err))
+}
+
   const endSession = () => {
+    if (audioRef.current) {
+      audioRef.current.stop()
+      setIsRecording(false)
+    }
+
     if (wsRef.current) {
       wsRef.current.send(JSON.stringify({ type: 'end_lecture' }))
       wsRef.current.close()
     }
+
     setStatus('idle')
     setSessionCode('')
     setTranscript('')
     setStudentCount(0)
   }
+
+  useEffect(() => {
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.stop()
+      }
+      if (wsRef.current) {
+        wsRef.current.close()
+      }
+    }
+  }, [])
 
   return (
     <div style={{
@@ -66,6 +136,8 @@ export default function Lecturer() {
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&family=Inter:wght@400;500;600&display=swap');
         * { box-sizing: border-box; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.4;transform:scale(0.75)} }
       `}</style>
 
       {status === 'idle' && (
@@ -88,9 +160,7 @@ export default function Lecturer() {
             Start a Lecture
           </h1>
           <p style={{ fontSize: 14, color: '#4a5568', marginBottom: 32, lineHeight: 1.6 }}>
-            Click Start Session to get your session code.
-            Then run transcribe.py on your laptop and enter the code.
-            Students join from their phones.
+            Click Start Session to begin. Your microphone will activate and captions will stream to students instantly.
           </p>
           <button
             onClick={startSession}
@@ -107,9 +177,18 @@ export default function Lecturer() {
       )}
 
       {status === 'connecting' && (
-        <p style={{ fontSize: 16, color: '#0A1930', fontWeight: 600 }}>
-          Creating session...
-        </p>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{
+            width: 48, height: 48, borderRadius: '50%',
+            border: '3px solid rgba(10,25,48,0.08)',
+            borderTop: '3px solid #D4A94C',
+            margin: '0 auto 16px',
+            animation: 'spin 1s linear infinite'
+          }} />
+          <p style={{ fontSize: 16, color: '#0A1930', fontWeight: 600 }}>
+            Creating session...
+          </p>
+        </div>
       )}
 
       {status === 'live' && (
@@ -134,7 +213,24 @@ export default function Lecturer() {
             </p>
           </div>
 
-    
+          <div style={{
+            background: isRecording ? 'rgba(34,197,94,0.1)' : 'rgba(212,169,76,0.1)',
+            borderRadius: 12, padding: '12px 16px', marginBottom: 16,
+            display: 'flex', alignItems: 'center', gap: 8
+          }}>
+            <span style={{
+              width: 8, height: 8, borderRadius: '50%',
+              background: isRecording ? '#22c55e' : '#D4A94C',
+              display: 'inline-block',
+              animation: isRecording ? 'pulse 1.5s infinite' : 'none'
+            }} />
+            <span style={{
+              fontSize: 12, fontWeight: 600,
+              color: isRecording ? '#16a34a' : '#9a7520'
+            }}>
+              {isRecording ? 'Recording and streaming' : 'Waiting to start'}
+            </span>
+          </div>
 
           <div style={{
             background: 'white', borderRadius: 16,
@@ -151,7 +247,7 @@ export default function Lecturer() {
             ) : (
               <p style={{ fontSize: 13, color: '#4a5568', textAlign: 'center',
                 marginTop: 60 }}>
-                Transcript will appear here once transcribe.py is running...
+                Transcript will appear here as you speak...
               </p>
             )}
           </div>
