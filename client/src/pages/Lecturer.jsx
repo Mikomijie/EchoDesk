@@ -65,19 +65,24 @@ export default function Lecturer() {
   }
 
   const sendAudioToServer = (audioChunk) => {
-    if (!sessionCode || !wsRef.current) return
+  if (!sessionCode || !wsRef.current) return
 
-    const reader = new FileReader()
-    reader.onload = () => {
-      const audioData = reader.result
-      wsRef.current.send(JSON.stringify({
-        type: 'audio_chunk',
-        code: sessionCode,
-        audio: audioData
-      }))
-    }
-    reader.readAsArrayBuffer(audioChunk)
+  const reader = new FileReader()
+  reader.onload = () => {
+    const audioData = reader.result
+    // Convert ArrayBuffer to base64
+    const uint8 = new Uint8Array(audioData)
+    const binary = String.fromCharCode.apply(null, uint8)
+    const base64 = btoa(binary)
+    
+    wsRef.current.send(JSON.stringify({
+      type: 'audio_chunk',
+      code: sessionCode,
+      audio: base64
+    }))
   }
+  reader.readAsArrayBuffer(audioChunk)
+}
 
   const endSession = () => {
     if (audioRef.current) {
