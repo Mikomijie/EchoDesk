@@ -152,7 +152,7 @@ wss.on('connection', (ws) => {
       
       // Create streaming transcriber for this session
       try {
-        const token = await client.realtime.createTemporaryToken({ expires_in: 3600 });
+        const token = await client.streaming.createTemporaryToken({ expires_in: 3600 })
         
         // We'll create transcriber when lecturer starts sending audio
         sessions[sessionCode].tempToken = token;
