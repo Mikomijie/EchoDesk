@@ -27,19 +27,25 @@ export default function Lecturer() {
     }
 
     ws.onmessage = (event) => {
-      const msg = JSON.parse(event.data)
+  const msg = JSON.parse(event.data)
 
-      if (msg.type === 'session_created') {
-        setSessionCode(msg.code)
-        setStatus('live')
-        startAudioCapture()
-      }
+  if (msg.type === 'session_created') {
+    setSessionCode(msg.code)
+    setStatus('live')
+    // Start streaming on AssemblyAI
+    ws.send(JSON.stringify({ type: 'start_streaming' }))
+    startAudioCapture()
+  }
 
-      if (msg.type === 'transcript_update') {
-        setTranscript(msg.text)
-        console.log('📝 Transcript updated:', msg.text)
-      }
-    }
+  if (msg.type === 'transcript_update') {
+    setTranscript(msg.text)
+    console.log('📝 Transcript updated:', msg.text)
+  }
+
+  if (msg.type === 'streaming_started') {
+    console.log('✅ Streaming started')
+  }
+}
 
     ws.onerror = (error) => {
       console.error('❌ WebSocket error:', error)
