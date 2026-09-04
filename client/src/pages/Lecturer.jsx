@@ -9,24 +9,11 @@ export default function Lecturer() {
   const wsRef = useRef(null)
   const audioRef = useRef(null)
 
-  const isLocalHost = () => (
-    window.location.hostname === 'localhost' ||
-    window.location.hostname === '127.0.0.1' ||
-    window.location.hostname === '::1'
-  )
-
   const getServerUrl = () => {
-    if (isLocalHost()) {
+    if (window.location.hostname === 'localhost') {
       return 'ws://localhost:3000'
     }
     return 'wss://echodesk-server.onrender.com'
-  }
-
-  const getServerBase = () => {
-    if (isLocalHost()) {
-      return 'http://localhost:3000'
-    }
-    return 'https://echodesk-server.onrender.com'
   }
 
   const startSession = () => {
@@ -35,6 +22,7 @@ export default function Lecturer() {
     wsRef.current = ws
 
     ws.onopen = () => {
+      console.log('✅ WebSocket connected');
       ws.send(JSON.stringify({ type: 'create_session' }))
     }
 
@@ -49,57 +37,47 @@ export default function Lecturer() {
 
       if (msg.type === 'transcript_update') {
         setTranscript(msg.text)
+        console.log('📝 Transcript updated:', msg.text)
       }
     }
 
-    ws.onerror = () => {
+    ws.onerror = (error) => {
+      console.error('❌ WebSocket error:', error)
       setStatus('error')
-    }
-
-    ws.onclose = () => {
-      if (wsRef.current === ws && status !== 'idle') {
-        setStatus('error')
-      }
     }
   }
 
   const startAudioCapture = async () => {
-  if (!audioRef.current) {
-    audioRef.current = new AudioCapture()
-  }
-
-  console.log('🎯 Starting audio capture...')
-  const success = await audioRef.current.start((text, isFinal) => {
-    if (isFinal) {
-      console.log('✅ Sending to students:', text)
-      broadcastTranscript(text)
+    if (!audioRef.current) {
+      audioRef.current = new AudioCapture()
     }
-  })
 
-  if (success) {
-    setIsRecording(true)
-    console.log('✅ Recording started')
-  } else {
-    console.log('❌ Recording failed')
-    setStatus('error')
-  }
-}
-
-  const broadcastTranscript = (text) => {
-  if (!sessionCode || !text.trim()) return
-
-  setTranscript(prev => prev + ' ' + text.trim())
-
-  fetch(`${getServerBase()}/broadcast`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      text: text.trim(),
-      code: sessionCode
+    const success = await audioRef.current.start((audioChunk) => {
+      sendAudioToServer(audioChunk)
     })
-  })
-  .catch(err => console.error('Error:', err))
-}
+
+    if (success) {
+      setIsRecording(true)
+      console.log('✅ Audio capture started')
+    } else {
+      setStatus('error')
+    }
+  }
+
+  const sendAudioToServer = (audioChunk) => {
+    if (!sessionCode || !wsRef.current) return
+
+    const reader = new FileReader()
+    reader.onload = () => {
+      const audioData = reader.result
+      wsRef.current.send(JSON.stringify({
+        type: 'audio_chunk',
+        code: sessionCode,
+        audio: audioData
+      }))
+    }
+    reader.readAsArrayBuffer(audioChunk)
+  }
 
   const endSession = () => {
     if (audioRef.current) {
@@ -235,17 +213,17 @@ export default function Lecturer() {
           </div>
 
           <div style={{
-  background: 'white', borderRadius: 16,
-  border: '0.5px solid rgba(10,25,48,0.08)',
-  padding: '20px 24px', minHeight: 200,
-  maxHeight: '40vh', overflowY: 'auto',
-  marginBottom: 16
-}}>
-  <p style={{ fontSize: 14, color: '#0A1930',
-    lineHeight: 1.8, whiteSpace: 'pre-wrap', margin: 0 }}>
-    {transcript.length > 0 ? transcript : 'Transcript will appear here as you speak...'}
-  </p>
-</div>
+            background: 'white', borderRadius: 16,
+            border: '0.5px solid rgba(10,25,48,0.08)',
+            padding: '20px 24px', minHeight: 200,
+            maxHeight: '40vh', overflowY: 'auto',
+            marginBottom: 16
+          }}>
+            <p style={{ fontSize: 14, color: '#0A1930',
+              lineHeight: 1.8, whiteSpace: 'pre-wrap', margin: 0 }}>
+              {transcript || 'Transcript will appear here as you speak...'}
+            </p>
+          </div>
 
           <button
             onClick={endSession}

@@ -2,12 +2,13 @@ require('dotenv').config();
 const express = require('express');
 const http = require('http');
 const WebSocket = require('ws');
+const assemblyai = require('assemblyai');
 
 const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json({ limit: '50mb' }));
 
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
@@ -18,6 +19,10 @@ app.use((req, res, next) => {
 });
 
 const sessions = {};
+const AssemblyAI = assemblyai.default;
+const client = new AssemblyAI({
+  apiKey: process.env.ASSEMBLYAI_API_KEY
+});
 
 function generateCode() {
   return Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -91,11 +96,7 @@ QUESTIONS:
     });
 
     const data = await response.json();
-    console.log('OpenRouter status:', response.status);
-    console.log('OpenRouter data:', JSON.stringify(data).slice(0, 500));
-
     const content = data.choices?.[0]?.message?.content || '';
-    console.log('OpenRouter content:', content.slice(0, 300));
 
     const summaryMatch = content.match(/SUMMARY:\n([\s\S]*?)\n\nQUESTIONS:/);
     const questionsMatch = content.match(/QUESTIONS:\n([\s\S]*?)$/);
@@ -119,41 +120,25 @@ QUESTIONS:
   }
 });
 
-app.post('/broadcast', (req, res) => {
-  const { text, code } = req.body;
-  if (!text || !code) return res.status(400).json({ error: 'Missing text or code' });
-
-  const session = sessions[code.toUpperCase()];
-  if (!session) return res.status(404).json({ error: 'Session not found' });
-
-  // Append to transcript instead of replacing
-  session.transcript += text + ' ';
-
-  broadcastToStudents(code.toUpperCase(), { type: 'caption', text: session.transcript });
-
-  if (session.lecturer && session.lecturer.readyState === WebSocket.OPEN) {
-    session.lecturer.send(JSON.stringify({ type: 'transcript_update', text: session.transcript }));
-  }
-
-  res.json({ ok: true });
-});
-
 wss.on('connection', (ws) => {
   let role = null;
   let sessionCode = null;
+  let recognizer = null;
 
-  ws.on('message', (data) => {
+  ws.on('message', async (data) => {
     let msg;
     try {
       msg = JSON.parse(data.toString());
-    } catch { return; }
+    } catch {
+      return;
+    }
 
     if (msg.type === 'create_session') {
       role = 'lecturer';
       sessionCode = generateCode();
       sessions[sessionCode] = { lecturer: ws, students: [], transcript: '' };
       ws.send(JSON.stringify({ type: 'session_created', code: sessionCode }));
-      console.log(`Session created: ${sessionCode}`);
+      console.log(`✅ Session created: ${sessionCode}`);
     }
 
     if (msg.type === 'join_session') {
@@ -173,7 +158,40 @@ wss.on('connection', (ws) => {
         ws.send(JSON.stringify({ type: 'caption', text: session.transcript }));
       }
 
-      console.log(`Student joined: ${sessionCode}`);
+      console.log(`✅ Student joined: ${sessionCode}`);
+    }
+
+    if (msg.type === 'audio_chunk') {
+      if (!sessionCode || !sessions[sessionCode]) return;
+
+      try {
+        // Convert audio data to buffer
+        const audioBuffer = Buffer.from(msg.audio, 'utf8');
+        
+        // Send to AssemblyAI for transcription
+        const transcript = await client.transcribe.transcribeAudio(audioBuffer);
+        
+        if (transcript.text) {
+          console.log('🎤 Transcribed:', transcript.text);
+          sessions[sessionCode].transcript += transcript.text + ' ';
+          
+          // Broadcast to all students
+          broadcastToStudents(sessionCode, { 
+            type: 'caption', 
+            text: sessions[sessionCode].transcript 
+          });
+          
+          // Update lecturer
+          if (sessions[sessionCode].lecturer && sessions[sessionCode].lecturer.readyState === WebSocket.OPEN) {
+            sessions[sessionCode].lecturer.send(JSON.stringify({ 
+              type: 'transcript_update', 
+              text: sessions[sessionCode].transcript 
+            }));
+          }
+        }
+      } catch (err) {
+        console.error('❌ AssemblyAI error:', err.message);
+      }
     }
 
     if (msg.type === 'end_lecture') {
@@ -185,7 +203,7 @@ wss.on('connection', (ws) => {
         transcript: session.transcript
       });
 
-      console.log(`Session ended: ${sessionCode}`);
+      console.log(`✅ Session ended: ${sessionCode}`);
       delete sessions[sessionCode];
     }
   });
@@ -207,5 +225,5 @@ app.get('/health', (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-  console.log(`EchoDesk server running on port ${PORT}`);
+  console.log(`🚀 EchoDesk server running on port ${PORT}`);
 });

@@ -1,14 +1,13 @@
 export class AudioCapture {
   constructor() {
-    this.recognition = null;
+    this.mediaRecorder = null;
     this.stream = null;
-    this.isListening = false;
-    this.restartTimeout = null;
+    this.audioChunks = [];
+    this.isRecording = false;
   }
 
-  async start(onTranscript) {
+  async start(onAudioChunk) {
     try {
-      // Request microphone
       this.stream = await navigator.mediaDevices.getUserMedia({ 
         audio: {
           echoCancellation: true,
@@ -19,75 +18,47 @@ export class AudioCapture {
 
       console.log('✅ Microphone access granted');
 
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      
-      if (!SpeechRecognition) {
-        alert('❌ Speech Recognition not supported. Use Chrome, Edge, or Safari.');
-        return false;
-      }
+      this.mediaRecorder = new MediaRecorder(this.stream);
+      this.audioChunks = [];
+      this.isRecording = true;
 
-      this.recognition = new SpeechRecognition();
-      this.recognition.continuous = true;
-      this.recognition.interimResults = true;
-      this.recognition.lang = 'en-US';
-      this.recognition.maxAlternatives = 1;
-      this.isListening = true;
-
-      this.recognition.onstart = () => {
-        console.log('🎤 Listening...');
-      };
-
-      this.recognition.onresult = (event) => {
-        for (let i = event.resultIndex; i < event.results.length; i++) {
-          const transcript = event.results[i][0].transcript;
-
-          if (event.results[i].isFinal) {
-            console.log('✅ FINAL:', transcript);
-            if (transcript.trim()) {
-              onTranscript(transcript, true);
-            }
-          }
+      this.mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          this.audioChunks.push(event.data);
+          console.log('🎵 Audio chunk captured, size:', event.data.size);
+          onAudioChunk(event.data);
         }
       };
 
-      this.recognition.onerror = (event) => {
-        console.error('🔴 Error:', event.error);
+      this.mediaRecorder.onerror = (event) => {
+        console.error('🔴 Recorder error:', event.error);
       };
 
-      this.recognition.onend = () => {
-        console.log('Speech ended');
-        if (this.isListening) {
-          // Wait 100ms before restarting
-          this.restartTimeout = setTimeout(() => {
-            try {
-              this.recognition.start();
-            } catch (e) {
-              console.log('Will restart shortly');
-            }
-          }, 100);
-        }
-      };
-
-      this.recognition.start();
+      this.mediaRecorder.start(1000); // Send chunks every 1 second
+      console.log('🎤 Recording started');
       return true;
 
     } catch (err) {
       console.error('❌ Error:', err.name, err.message);
-      alert('Microphone error: ' + err.message);
+      if (err.name === 'NotAllowedError') {
+        alert('Microphone access denied. Please allow microphone.');
+      } else if (err.name === 'NotFoundError') {
+        alert('No microphone found.');
+      }
       return false;
     }
   }
 
   stop() {
-    this.isListening = false;
-    if (this.restartTimeout) clearTimeout(this.restartTimeout);
-    if (this.recognition) {
-      try {
-        this.recognition.abort();
-      } catch (e) {}
+    this.isRecording = false;
+    if (this.mediaRecorder) {
+      this.mediaRecorder.stop();
+      this.mediaRecorder = null;
     }
     if (this.stream) {
       this.stream.getTracks().forEach(track => track.stop());
+      this.stream = null;
     }
+    this.audioChunks = [];
   }
 }
