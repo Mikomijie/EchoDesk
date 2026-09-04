@@ -2,7 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const http = require('http');
 const WebSocket = require('ws');
-const assemblyai = require('assemblyai');
+const { AssemblyAI } = require('assemblyai');
 
 const app = express();
 const server = http.createServer(app);
@@ -19,7 +19,6 @@ app.use((req, res, next) => {
 });
 
 const sessions = {};
-const AssemblyAI = assemblyai.default;
 const client = new AssemblyAI({
   apiKey: process.env.ASSEMBLYAI_API_KEY
 });
@@ -123,7 +122,6 @@ QUESTIONS:
 wss.on('connection', (ws) => {
   let role = null;
   let sessionCode = null;
-  let recognizer = null;
 
   ws.on('message', async (data) => {
     let msg;
@@ -165,17 +163,21 @@ wss.on('connection', (ws) => {
       if (!sessionCode || !sessions[sessionCode]) return;
 
       try {
-        // Convert audio data to buffer
+        // Convert base64 audio to buffer
         const audioBuffer = Buffer.from(msg.audio, 'utf8');
         
-        // Send to AssemblyAI for transcription
-        const transcript = await client.transcribe.transcribeAudio(audioBuffer);
+        console.log('📝 Transcribing audio chunk...');
+        
+        // Send to AssemblyAI
+        const transcript = await client.transcripts.transcribe({
+          audio: audioBuffer
+        });
         
         if (transcript.text) {
-          console.log('🎤 Transcribed:', transcript.text);
+          console.log('✅ Transcribed:', transcript.text);
           sessions[sessionCode].transcript += transcript.text + ' ';
           
-          // Broadcast to all students
+          // Broadcast to students
           broadcastToStudents(sessionCode, { 
             type: 'caption', 
             text: sessions[sessionCode].transcript 
