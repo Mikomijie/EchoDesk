@@ -122,21 +122,47 @@ QUESTIONS:
 wss.on('connection', (ws) => {
   let role = null;
   let sessionCode = null;
+  let streamingTranscriber = null;
 
   ws.on('message', async (data) => {
     let msg;
     try {
       msg = JSON.parse(data.toString());
     } catch {
+      // Binary audio data
+      if (streamingTranscriber && role === 'lecturer') {
+        try {
+          streamingTranscriber.send(data);
+        } catch (err) {
+          console.error('Error sending audio to AssemblyAI:', err);
+        }
+      }
       return;
     }
 
     if (msg.type === 'create_session') {
       role = 'lecturer';
       sessionCode = generateCode();
-      sessions[sessionCode] = { lecturer: ws, students: [], transcript: '' };
-      ws.send(JSON.stringify({ type: 'session_created', code: sessionCode }));
-      console.log(`✅ Session created: ${sessionCode}`);
+      sessions[sessionCode] = { 
+        lecturer: ws, 
+        students: [], 
+        transcript: '',
+        transcriber: null
+      };
+      
+      // Create streaming transcriber for this session
+      try {
+        const token = await client.realtime.createTemporaryToken({ expires_in: 3600 });
+        
+        // We'll create transcriber when lecturer starts sending audio
+        sessions[sessionCode].tempToken = token;
+        
+        ws.send(JSON.stringify({ type: 'session_created', code: sessionCode, token: token }));
+        console.log(`✅ Session created: ${sessionCode}`);
+      } catch (err) {
+        console.error('Error creating temp token:', err);
+        ws.send(JSON.stringify({ type: 'error', message: 'Failed to create session' }));
+      }
     }
 
     if (msg.type === 'join_session') {
@@ -159,46 +185,73 @@ wss.on('connection', (ws) => {
       console.log(`✅ Student joined: ${sessionCode}`);
     }
 
-    if (msg.type === 'audio_chunk') {
-      if (!sessionCode || !sessions[sessionCode]) return;
+    if (msg.type === 'start_streaming') {
+      if (role !== 'lecturer' || !sessionCode) return;
+
+      const session = sessions[sessionCode];
+      if (!session || streamingTranscriber) return;
 
       try {
-        // Convert base64 audio to buffer
-        const audioBuffer = Buffer.from(msg.audio, 'utf8');
+        const { StreamingTranscriber } = require('assemblyai');
         
-        console.log('📝 Transcribing audio chunk...');
-        
-        // Send to AssemblyAI
-        const transcript = await client.transcripts.transcribe({
-          audio: audioBuffer
+        streamingTranscriber = new StreamingTranscriber({
+          token: session.tempToken
         });
-        
-        if (transcript.text) {
-          console.log('✅ Transcribed:', transcript.text);
-          sessions[sessionCode].transcript += transcript.text + ' ';
-          
-          // Broadcast to students
-          broadcastToStudents(sessionCode, { 
-            type: 'caption', 
-            text: sessions[sessionCode].transcript 
-          });
-          
-          // Update lecturer
-          if (sessions[sessionCode].lecturer && sessions[sessionCode].lecturer.readyState === WebSocket.OPEN) {
-            sessions[sessionCode].lecturer.send(JSON.stringify({ 
-              type: 'transcript_update', 
-              text: sessions[sessionCode].transcript 
-            }));
+
+        streamingTranscriber.on('open', ({ id, expires_at }) => {
+          console.log(`🎤 Streaming session opened: ${id}`);
+        });
+
+        streamingTranscriber.on('transcript', ({ transcript, is_final }) => {
+          if (transcript) {
+            console.log(`📝 ${is_final ? 'FINAL' : 'interim'}: ${transcript}`);
+            
+            if (is_final) {
+              session.transcript += transcript + ' ';
+            }
+            
+            broadcastToStudents(sessionCode, {
+              type: 'caption',
+              text: session.transcript,
+              interim: transcript && !is_final
+            });
+
+            if (session.lecturer && session.lecturer.readyState === WebSocket.OPEN) {
+              session.lecturer.send(JSON.stringify({
+                type: 'transcript_update',
+                text: session.transcript
+              }));
+            }
           }
-        }
+        });
+
+        streamingTranscriber.on('error', (error) => {
+          console.error('❌ Streaming error:', error);
+        });
+
+        streamingTranscriber.on('close', (code, reason) => {
+          console.log(`Streaming closed: ${code} ${reason}`);
+          streamingTranscriber = null;
+        });
+
+        streamingTranscriber.connect();
+        session.transcriber = streamingTranscriber;
+        
+        ws.send(JSON.stringify({ type: 'streaming_started' }));
       } catch (err) {
-        console.error('❌ AssemblyAI error:', err.message);
+        console.error('Error starting streaming:', err);
+        ws.send(JSON.stringify({ type: 'error', message: 'Failed to start streaming' }));
       }
     }
 
     if (msg.type === 'end_lecture') {
       const session = sessions[sessionCode];
       if (!session) return;
+
+      if (streamingTranscriber) {
+        streamingTranscriber.close();
+        streamingTranscriber = null;
+      }
 
       broadcastToStudents(sessionCode, {
         type: 'lecture_ended',
@@ -211,10 +264,16 @@ wss.on('connection', (ws) => {
   });
 
   ws.on('close', () => {
+    if (streamingTranscriber) {
+      streamingTranscriber.close();
+      streamingTranscriber = null;
+    }
+    
     if (role === 'lecturer' && sessionCode && sessions[sessionCode]) {
       broadcastToStudents(sessionCode, { type: 'lecturer_disconnected' });
       delete sessions[sessionCode];
     }
+    
     if (role === 'student' && sessionCode && sessions[sessionCode]) {
       sessions[sessionCode].students = sessions[sessionCode].students.filter(s => s !== ws);
     }
