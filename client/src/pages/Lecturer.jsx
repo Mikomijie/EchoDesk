@@ -242,8 +242,8 @@ export default function Lecturer() {
   marginBottom: 16
 }}>
   <p style={{ fontSize: 14, color: '#0A1930',
-    lineHeight: 1.8, whiteSpace: 'pre-wrap', minHeight: 60 }}>
-    {transcript || 'Transcript will appear here as you speak...'}
+    lineHeight: 1.8, whiteSpace: 'pre-wrap', margin: 0 }}>
+    {transcript.length > 0 ? transcript : 'Transcript will appear here as you speak...'}
   </p>
 </div>
 
