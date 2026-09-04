@@ -5,20 +5,25 @@ export default function Lecturer() {
   const [status, setStatus] = useState('idle')
   const [sessionCode, setSessionCode] = useState('')
   const [transcript, setTranscript] = useState('')
-  const [studentCount, setStudentCount] = useState(0)
   const [isRecording, setIsRecording] = useState(false)
   const wsRef = useRef(null)
   const audioRef = useRef(null)
 
+  const isLocalHost = () => (
+    window.location.hostname === 'localhost' ||
+    window.location.hostname === '127.0.0.1' ||
+    window.location.hostname === '::1'
+  )
+
   const getServerUrl = () => {
-    if (window.location.hostname === 'localhost') {
+    if (isLocalHost()) {
       return 'ws://localhost:3000'
     }
     return 'wss://echodesk-server.onrender.com'
   }
 
   const getServerBase = () => {
-    if (window.location.hostname === 'localhost') {
+    if (isLocalHost()) {
       return 'http://localhost:3000'
     }
     return 'https://echodesk-server.onrender.com'
@@ -50,6 +55,12 @@ export default function Lecturer() {
     ws.onerror = () => {
       setStatus('error')
     }
+
+    ws.onclose = () => {
+      if (wsRef.current === ws && status !== 'idle') {
+        setStatus('error')
+      }
+    }
   }
 
   const startAudioCapture = async () => {
@@ -77,25 +88,17 @@ export default function Lecturer() {
   const broadcastTranscript = (text) => {
   if (!sessionCode || !text.trim()) return
 
-  // Update UI immediately
-  setTranscript(prev => {
-    const updated = prev + ' ' + text
-    console.log('📊 Transcript updated:', updated)
-    return updated
-  })
+  setTranscript(prev => prev + ' ' + text.trim())
 
-  // Send to server
   fetch(`${getServerBase()}/broadcast`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      text: text,
+      text: text.trim(),
       code: sessionCode
     })
   })
-  .then(res => res.json())
-  .then(data => console.log('✅ Broadcast sent:', data))
-  .catch(err => console.error('❌ Broadcast error:', err))
+  .catch(err => console.error('Error:', err))
 }
 
   const endSession = () => {
@@ -112,7 +115,6 @@ export default function Lecturer() {
     setStatus('idle')
     setSessionCode('')
     setTranscript('')
-    setStudentCount(0)
   }
 
   useEffect(() => {
@@ -233,24 +235,17 @@ export default function Lecturer() {
           </div>
 
           <div style={{
-            background: 'white', borderRadius: 16,
-            border: '0.5px solid rgba(10,25,48,0.08)',
-            padding: '20px 24px', minHeight: 200,
-            maxHeight: '40vh', overflowY: 'auto',
-            marginBottom: 16
-          }}>
-            {transcript ? (
-              <p style={{ fontSize: 14, color: '#0A1930',
-                lineHeight: 1.8, whiteSpace: 'pre-wrap' }}>
-                {transcript}
-              </p>
-            ) : (
-              <p style={{ fontSize: 13, color: '#4a5568', textAlign: 'center',
-                marginTop: 60 }}>
-                Transcript will appear here as you speak...
-              </p>
-            )}
-          </div>
+  background: 'white', borderRadius: 16,
+  border: '0.5px solid rgba(10,25,48,0.08)',
+  padding: '20px 24px', minHeight: 200,
+  maxHeight: '40vh', overflowY: 'auto',
+  marginBottom: 16
+}}>
+  <p style={{ fontSize: 14, color: '#0A1930',
+    lineHeight: 1.8, whiteSpace: 'pre-wrap', minHeight: 60 }}>
+    {transcript || 'Transcript will appear here as you speak...'}
+  </p>
+</div>
 
           <button
             onClick={endSession}

@@ -3,11 +3,12 @@ export class AudioCapture {
     this.recognition = null;
     this.stream = null;
     this.isListening = false;
+    this.restartTimeout = null;
   }
 
   async start(onTranscript) {
     try {
-      // First, request microphone access explicitly
+      // Request microphone
       this.stream = await navigator.mediaDevices.getUserMedia({ 
         audio: {
           echoCancellation: true,
@@ -18,7 +19,6 @@ export class AudioCapture {
 
       console.log('✅ Microphone access granted');
 
-      // Initialize Web Speech API
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
       
       if (!SpeechRecognition) {
@@ -30,72 +30,61 @@ export class AudioCapture {
       this.recognition.continuous = true;
       this.recognition.interimResults = true;
       this.recognition.lang = 'en-US';
+      this.recognition.maxAlternatives = 1;
       this.isListening = true;
 
-      let interimText = '';
-
       this.recognition.onstart = () => {
-        console.log('🎤 Speech recognition STARTED - listening now...');
-        this.isListening = true;
+        console.log('🎤 Listening...');
       };
 
       this.recognition.onresult = (event) => {
-        interimText = '';
-
         for (let i = event.resultIndex; i < event.results.length; i++) {
           const transcript = event.results[i][0].transcript;
-          console.log(`📝 ${event.results[i].isFinal ? 'FINAL' : 'interim'}: ${transcript}`);
 
           if (event.results[i].isFinal) {
-            // Send final result to callback
-            onTranscript(transcript, true);
-          } else {
-            interimText += transcript;
+            console.log('✅ FINAL:', transcript);
+            if (transcript.trim()) {
+              onTranscript(transcript, true);
+            }
           }
         }
       };
 
       this.recognition.onerror = (event) => {
-        console.error('🔴 Speech error:', event.error);
+        console.error('🔴 Error:', event.error);
       };
 
       this.recognition.onend = () => {
-        console.log('Speech recognition ended, restarting...');
+        console.log('Speech ended');
         if (this.isListening) {
-          try {
-            this.recognition.start();
-          } catch (e) {
-            console.log('Restart failed, will try again');
-          }
+          // Wait 100ms before restarting
+          this.restartTimeout = setTimeout(() => {
+            try {
+              this.recognition.start();
+            } catch (e) {
+              console.log('Will restart shortly');
+            }
+          }, 100);
         }
       };
 
-      // START LISTENING
       this.recognition.start();
-      console.log('🚀 Waiting for speech...');
       return true;
 
     } catch (err) {
       console.error('❌ Error:', err.name, err.message);
-      if (err.name === 'NotAllowedError') {
-        alert('Microphone access DENIED. Click allow when browser asks.');
-      } else if (err.name === 'NotFoundError') {
-        alert('No microphone found. Connect a mic.');
-      } else {
-        alert('Error: ' + err.message);
-      }
+      alert('Microphone error: ' + err.message);
       return false;
     }
   }
 
   stop() {
     this.isListening = false;
+    if (this.restartTimeout) clearTimeout(this.restartTimeout);
     if (this.recognition) {
       try {
         this.recognition.abort();
-      } catch (e) {
-        console.log('Recognition already stopped');
-      }
+      } catch (e) {}
     }
     if (this.stream) {
       this.stream.getTracks().forEach(track => track.stop());
