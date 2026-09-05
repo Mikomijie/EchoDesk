@@ -195,9 +195,9 @@ wss.on('connection', (ws) => {
       try {
         const { StreamingTranscriber } = require('assemblyai');
         
-        streamingTranscriber = new StreamingTranscriber({
+       streamingTranscriber = new StreamingTranscriber({
   token: session.tempToken,
-  encoding: 'ogg_opus',
+  encoding: 'opus',
   speechModel: 'universal-streaming-english'
 });
 
