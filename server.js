@@ -69,11 +69,11 @@ Here is a lecture transcript:
 
 Please provide:
 
-1. SUMMARY: Write exactly 5 clear bullet points summarizing the key topics covered. Each bullet must be a complete, meaningful sentence about what was actually discussed.
+1. SUMMARY: Write exactly 5 clear bullet points summarizing the key topics covered.
 
-2. QUESTIONS: Write exactly 5 exam-style practice questions based specifically on what was discussed. Mix definition, application, and critical thinking questions.
+2. QUESTIONS: Write exactly 5 exam-style practice questions based on the lecture.
 
-Format your response EXACTLY like this with no extra text:
+Format:
 SUMMARY:
 - [bullet 1]
 - [bullet 2]
@@ -102,19 +102,19 @@ QUESTIONS:
 
     const summaryLines = summaryMatch
       ? summaryMatch[1].split('\n').filter(l => l.trim().startsWith('-')).map(l => l.replace(/^-\s*/, '').trim())
-      : ['Summary could not be generated. Please review the transcript below.']
+      : ['Summary could not be generated.']
 
     const questionLines = questionsMatch
       ? questionsMatch[1].split('\n').filter(l => l.trim().match(/^\d+\./)).map(l => l.replace(/^\d+\.\s*/, '').trim())
-      : ['What were the main topics covered in this lecture?']
+      : ['What were the main topics?']
 
     res.json({ summary: summaryLines, questions: questionLines });
 
   } catch (err) {
     console.error('OpenRouter error:', err.message);
     res.status(500).json({
-      summary: ['Could not generate summary. Please review the full transcript below.'],
-      questions: ['What were the main topics covered in this lecture?']
+      summary: ['Error generating summary'],
+      questions: ['What were the main topics?']
     });
   }
 });
@@ -122,50 +122,61 @@ QUESTIONS:
 wss.on('connection', (ws) => {
   let role = null;
   let sessionCode = null;
+  let audioBuffer = Buffer.alloc(0);
+  let transcribeTimeout = null;
 
   ws.on('message', async (data) => {
     let msg;
     try {
       msg = JSON.parse(data.toString());
     } catch {
-      // Binary audio data - batch transcription
+      // Binary audio data - accumulate and transcribe after 3 seconds
       if (sessionCode && sessions[sessionCode]) {
-        const session = sessions[sessionCode];
+        audioBuffer = Buffer.concat([audioBuffer, Buffer.from(data)]);
+        console.log('🎵 Audio accumulated, total size:', audioBuffer.length);
         
-        try {
-          console.log('🎵 Transcribing audio chunk, size:', data.length);
+        // Clear existing timeout
+        if (transcribeTimeout) clearTimeout(transcribeTimeout);
+        
+        // Set new timeout to transcribe after 3 seconds of silence
+        transcribeTimeout = setTimeout(async () => {
+          if (audioBuffer.length === 0) return;
           
-          // Convert to Buffer if needed
-          const audioBuffer = Buffer.isBuffer(data) ? data : Buffer.from(data);
+          const session = sessions[sessionCode];
+          if (!session) return;
           
-          // Batch transcription - AssemblyAI processes the audio chunk
-          const transcript = await client.transcripts.transcribe({
-            audio: audioBuffer
-          });
-          
-          if (transcript.text) {
-            console.log(`📝 TRANSCRIBED: ${transcript.text}`);
+          try {
+            console.log('📝 Transcribing accumulated audio, size:', audioBuffer.length);
             
-            // Append to session transcript
-            session.transcript += transcript.text + ' ';
-            
-            // Broadcast to all students
-            broadcastToStudents(sessionCode, {
-              type: 'caption',
-              text: session.transcript
+            const transcript = await client.transcripts.transcribe({
+              audio: audioBuffer
             });
-
-            // Update lecturer
-            if (session.lecturer && session.lecturer.readyState === WebSocket.OPEN) {
-              session.lecturer.send(JSON.stringify({
-                type: 'transcript_update',
+            
+            if (transcript.text) {
+              console.log(`✅ TRANSCRIBED: ${transcript.text}`);
+              
+              session.transcript += transcript.text + ' ';
+              
+              broadcastToStudents(sessionCode, {
+                type: 'caption',
                 text: session.transcript
-              }));
+              });
+
+              if (session.lecturer && session.lecturer.readyState === WebSocket.OPEN) {
+                session.lecturer.send(JSON.stringify({
+                  type: 'transcript_update',
+                  text: session.transcript
+                }));
+              }
             }
+            
+            // Reset buffer
+            audioBuffer = Buffer.alloc(0);
+          } catch (err) {
+            console.error('❌ Transcription error:', err.message);
+            audioBuffer = Buffer.alloc(0);
           }
-        } catch (err) {
-          console.error('❌ Transcription error:', err.message);
-        }
+        }, 3000);
       }
       return;
     }
@@ -190,14 +201,13 @@ wss.on('connection', (ws) => {
       const session = sessions[sessionCode];
 
       if (!session) {
-        ws.send(JSON.stringify({ type: 'error', message: 'Session not found. Check the code and try again.' }));
+        ws.send(JSON.stringify({ type: 'error', message: 'Session not found.' }));
         return;
       }
 
       session.students.push(ws);
       ws.send(JSON.stringify({ type: 'joined', code: sessionCode }));
 
-      // Send current transcript to new student
       if (session.transcript) {
         ws.send(JSON.stringify({ type: 'caption', text: session.transcript }));
       }
@@ -220,6 +230,8 @@ wss.on('connection', (ws) => {
   });
 
   ws.on('close', () => {
+    if (transcribeTimeout) clearTimeout(transcribeTimeout);
+    
     if (role === 'lecturer' && sessionCode && sessions[sessionCode]) {
       broadcastToStudents(sessionCode, { type: 'lecturer_disconnected' });
       delete sessions[sessionCode];
