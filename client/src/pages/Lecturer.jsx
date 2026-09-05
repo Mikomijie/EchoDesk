@@ -23,9 +23,7 @@ export default function Lecturer() {
 
     ws.onopen = () => {
       console.log('✅ WebSocket connected')
-      setTimeout(() => {
-        ws.send(JSON.stringify({ type: 'create_session' }))
-      }, 300)
+      ws.send(JSON.stringify({ type: 'create_session' }))
     }
 
     ws.onmessage = (event) => {
@@ -36,15 +34,6 @@ export default function Lecturer() {
         setStatus('live')
         console.log('✅ Session created, starting audio...')
         startAudioCapture()
-        
-        setTimeout(() => {
-          ws.send(JSON.stringify({ type: 'start_streaming' }))
-          console.log('✅ Start streaming message sent')
-        }, 500)
-      }
-
-      if (msg.type === 'streaming_started') {
-        console.log('✅ AssemblyAI streaming connected')
       }
 
       if (msg.type === 'transcript_update') {
@@ -82,7 +71,8 @@ export default function Lecturer() {
   }
 
   const sendAudioToServer = (audioChunk) => {
-    if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return
+    if (!sessionCode || !wsRef.current) return
+    if (wsRef.current.readyState !== WebSocket.OPEN) return
 
     const reader = new FileReader()
     reader.onload = () => {

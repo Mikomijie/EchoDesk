@@ -18,7 +18,8 @@ export class AudioCapture {
 
       console.log('✅ Microphone access granted');
 
-      this.mediaRecorder = new MediaRecorder(this.stream);
+      const options = { mimeType: 'audio/webm;codecs=opus' };
+this.mediaRecorder = new MediaRecorder(this.stream, options);
       this.audioChunks = [];
       this.isRecording = true;
 

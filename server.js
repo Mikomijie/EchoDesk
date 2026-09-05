@@ -128,24 +128,28 @@ wss.on('connection', (ws) => {
     try {
       msg = JSON.parse(data.toString());
     } catch {
-      // Binary audio data
+      // Binary audio data - batch transcription
       if (sessionCode && sessions[sessionCode]) {
         const session = sessions[sessionCode];
         
-        // Transcribe audio chunk
         try {
           console.log('🎵 Transcribing audio chunk, size:', data.length);
           
+          // Convert to Buffer if needed
+          const audioBuffer = Buffer.isBuffer(data) ? data : Buffer.from(data);
+          
+          // Batch transcription - AssemblyAI processes the audio chunk
           const transcript = await client.transcripts.transcribe({
-            audio: data
+            audio: audioBuffer
           });
           
           if (transcript.text) {
             console.log(`📝 TRANSCRIBED: ${transcript.text}`);
             
+            // Append to session transcript
             session.transcript += transcript.text + ' ';
             
-            // Broadcast to students
+            // Broadcast to all students
             broadcastToStudents(sessionCode, {
               type: 'caption',
               text: session.transcript
@@ -166,6 +170,7 @@ wss.on('connection', (ws) => {
       return;
     }
 
+    // JSON message handling
     if (msg.type === 'create_session') {
       role = 'lecturer';
       sessionCode = generateCode();
@@ -192,6 +197,7 @@ wss.on('connection', (ws) => {
       session.students.push(ws);
       ws.send(JSON.stringify({ type: 'joined', code: sessionCode }));
 
+      // Send current transcript to new student
       if (session.transcript) {
         ws.send(JSON.stringify({ type: 'caption', text: session.transcript }));
       }
