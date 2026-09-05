@@ -201,8 +201,9 @@ wss.on('connection', (ws) => {
         });
 
         streamingTranscriber.on('transcript', ({ transcript, is_final }) => {
-          if (transcript) {
-            console.log(`📝 ${is_final ? 'FINAL' : 'interim'}: ${transcript}`);
+  console.log('🎯 Transcript event received:', { transcript, is_final });
+  if (transcript) {
+    console.log(`📝 ${is_final ? 'FINAL' : 'interim'}: ${transcript}`);
             
             if (is_final) {
               session.transcript += transcript + ' ';
