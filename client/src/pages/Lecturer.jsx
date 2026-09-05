@@ -30,11 +30,13 @@ export default function Lecturer() {
       const msg = JSON.parse(event.data)
 
       if (msg.type === 'session_created') {
-        setSessionCode(msg.code)
-        setStatus('live')
-        console.log('✅ Session created, starting audio...')
-        startAudioCapture()
-      }
+  setSessionCode(msg.code)
+  setStatus('live')
+  console.log('✅ Session created:', msg.code);
+  console.log('✅ WebSocket state:', wsRef.current.readyState);
+  console.log('✅ Starting audio...')
+  startAudioCapture()
+}
 
       if (msg.type === 'transcript_update') {
         setTranscript(msg.text)
