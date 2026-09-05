@@ -73,7 +73,14 @@ export default function Lecturer() {
   const sendAudioToServer = (audioChunk) => {
   if (!sessionCode || !wsRef.current) return
 
-  // Send raw audio data directly
+  // Send audio with encoding info
+  wsRef.current.send(JSON.stringify({
+    type: 'audio_chunk',
+    encoding: 'ogg_opus',
+    code: sessionCode
+  }))
+  
+  // Then send the actual audio chunk
   wsRef.current.send(audioChunk)
 }
 
