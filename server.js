@@ -132,14 +132,13 @@ wss.on('connection', (ws) => {
     } catch {
       // Binary audio data - accumulate and transcribe after 3 seconds
       if (sessionCode && sessions[sessionCode]) {
-        audioBuffer = Buffer.concat([audioBuffer, Buffer.from(data)]);
-        console.log('🎵 Audio accumulated, total size:', audioBuffer.length);
-        
-        // Clear existing timeout
-        if (transcribeTimeout) clearTimeout(transcribeTimeout);
-        
-        // Set new timeout to transcribe after 3 seconds of silence
-        transcribeTimeout = setTimeout(async () => {
+  audioBuffer = Buffer.concat([audioBuffer, Buffer.from(data)]);
+  console.log('🎵 Audio accumulated, total size:', audioBuffer.length);
+  
+  // Only set timeout if not already set
+  if (!transcribeTimeout) {
+    console.log('⏱️ Setting transcription timeout...');
+    transcribeTimeout = setTimeout(async () => {
           if (audioBuffer.length === 0) return;
           
           const session = sessions[sessionCode];
