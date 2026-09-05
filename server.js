@@ -125,22 +125,25 @@ wss.on('connection', (ws) => {
   let streamingTranscriber = null;
 
   ws.on('message', async (data) => {
-    let msg;
-    try {
-      msg = JSON.parse(data.toString());
-    } catch {
-      // Binary audio data
-      if (streamingTranscriber && role === 'lecturer') {
-        try {
-          streamingTranscriber.send(data);
-        } catch (err) {
-          console.error('Error sending audio to AssemblyAI:', err);
-        }
+  console.log('📨 Message received, size:', data.length);
+  
+  let msg;
+  try {
+    msg = JSON.parse(data.toString());
+    console.log('📨 Parsed message type:', msg.type);
+  } catch {
+    // Binary audio data
+    if (streamingTranscriber && role === 'lecturer') {
+      try {
+        streamingTranscriber.send(data);
+      } catch (err) {
+        console.error('Error sending audio to AssemblyAI:', err);
       }
-      return;
     }
+    return;
+  }
 
-    if (msg.type === 'create_session') {
+  if (msg.type === 'create_session') {
       role = 'lecturer';
       sessionCode = generateCode();
       sessions[sessionCode] = { 
