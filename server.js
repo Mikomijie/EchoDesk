@@ -130,59 +130,63 @@ wss.on('connection', (ws) => {
     try {
       msg = JSON.parse(data.toString());
     } catch {
-      // Binary audio data - accumulate and transcribe after 3 seconds
+      // Binary audio data - accumulate and transcribe
       if (sessionCode && sessions[sessionCode]) {
-  audioBuffer = Buffer.concat([audioBuffer, Buffer.from(data)]);
-  console.log('🎵 Audio accumulated, total size:', audioBuffer.length);
-  
-  // Only set timeout if not already set
-  if (!transcribeTimeout) {
-    console.log('⏱️ Setting transcription timeout...');
-    transcribeTimeout = setTimeout(async () => {
-          if (audioBuffer.length === 0) return;
-          
-          const session = sessions[sessionCode];
-          if (!session) return;
-          
-          try {
-            console.log('📝 Transcribing accumulated audio, size:', audioBuffer.length);
+        audioBuffer = Buffer.concat([audioBuffer, Buffer.from(data)]);
+        console.log('🎵 Audio accumulated, total size:', audioBuffer.length);
+        
+        // Only set timeout if not already set
+        if (!transcribeTimeout) {
+          console.log('⏱️ Setting transcription timeout...');
+          transcribeTimeout = setTimeout(async () => {
+            if (audioBuffer.length === 0) return;
             
-            const transcript = await client.transcripts.transcribe({
-              audio: audioBuffer
-            });
+            const session = sessions[sessionCode];
+            if (!session) return;
             
-            // CHECK STATUS FIRST
-            if (transcript.status === 'error') {
-              console.error('❌ AssemblyAI Error:', transcript.error);
-              audioBuffer = Buffer.alloc(0);
-              return;
-            }
-            
-            if (transcript.text) {
-              console.log(`✅ TRANSCRIBED: ${transcript.text}`);
+            try {
+              console.log('📝 Transcribing accumulated audio, size:', audioBuffer.length);
               
-              session.transcript += transcript.text + ' ';
-              
-              broadcastToStudents(sessionCode, {
-                type: 'caption',
-                text: session.transcript
+              const transcript = await client.transcripts.transcribe({
+                audio: audioBuffer
               });
-
-              if (session.lecturer && session.lecturer.readyState === WebSocket.OPEN) {
-                session.lecturer.send(JSON.stringify({
-                  type: 'transcript_update',
-                  text: session.transcript
-                }));
+              
+              // CHECK STATUS FIRST
+              if (transcript.status === 'error') {
+                console.error('❌ AssemblyAI Error:', transcript.error);
+                audioBuffer = Buffer.alloc(0);
+                transcribeTimeout = null;
+                return;
               }
+              
+              if (transcript.text) {
+                console.log(`✅ TRANSCRIBED: ${transcript.text}`);
+                
+                session.transcript += transcript.text + ' ';
+                
+                broadcastToStudents(sessionCode, {
+                  type: 'caption',
+                  text: session.transcript
+                });
+
+                if (session.lecturer && session.lecturer.readyState === WebSocket.OPEN) {
+                  session.lecturer.send(JSON.stringify({
+                    type: 'transcript_update',
+                    text: session.transcript
+                  }));
+                }
+              }
+              
+              // Reset buffer and timeout
+              audioBuffer = Buffer.alloc(0);
+              transcribeTimeout = null;
+            } catch (err) {
+              console.error('❌ Transcription error:', err.message);
+              audioBuffer = Buffer.alloc(0);
+              transcribeTimeout = null;
             }
-            
-            // Reset buffer
-            audioBuffer = Buffer.alloc(0);
-          } catch (err) {
-            console.error('❌ Transcription error:', err.message);
-            audioBuffer = Buffer.alloc(0);
-          }
-        }, 3000);
+          }, 5000);
+        }
       }
       return;
     }
