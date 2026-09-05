@@ -148,8 +148,9 @@ wss.on('connection', (ws) => {
               console.log('📝 Transcribing accumulated audio, size:', audioBuffer.length);
               
               const transcript = await client.transcripts.transcribe({
-                audio: audioBuffer
-              });
+  audio: audioBuffer,
+  encoding: 'webm'
+});
               
               // CHECK STATUS FIRST
               if (transcript.status === 'error') {
