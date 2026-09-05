@@ -71,15 +71,31 @@ export default function Lecturer() {
   }
 
   const sendAudioToServer = (audioChunk) => {
-    if (!sessionCode || !wsRef.current) return
-    if (wsRef.current.readyState !== WebSocket.OPEN) return
-
-    const reader = new FileReader()
-    reader.onload = () => {
-      wsRef.current.send(reader.result)
-    }
-    reader.readAsArrayBuffer(audioChunk)
+  if (!sessionCode) {
+    console.log('❌ No session code');
+    return;
   }
+  if (!wsRef.current) {
+    console.log('❌ No WebSocket');
+    return;
+  }
+  if (wsRef.current.readyState !== WebSocket.OPEN) {
+    console.log('❌ WebSocket not open, state:', wsRef.current.readyState);
+    return;
+  }
+
+  console.log('📤 Sending audio chunk, size:', audioChunk.size);
+  
+  const reader = new FileReader()
+  reader.onload = () => {
+    console.log('📤 FileReader loaded, sending to server');
+    wsRef.current.send(reader.result)
+  }
+  reader.onerror = () => {
+    console.error('❌ FileReader error');
+  }
+  reader.readAsArrayBuffer(audioChunk)
+}
 
   const endSession = () => {
     if (audioRef.current) {
