@@ -8,6 +8,7 @@ export default function Lecturer() {
   const [isRecording, setIsRecording] = useState(false)
   const wsRef = useRef(null)
   const audioRef = useRef(null)
+  const sessionCodeRef = useRef(null)
 
   const getServerUrl = () => {
     if (window.location.hostname === 'localhost') {
@@ -30,13 +31,17 @@ export default function Lecturer() {
       const msg = JSON.parse(event.data)
 
       if (msg.type === 'session_created') {
-  setSessionCode(msg.code)
-  setStatus('live')
-  console.log('✅ Session created:', msg.code);
-  console.log('✅ WebSocket state:', wsRef.current.readyState);
-  console.log('✅ Starting audio...')
-  startAudioCapture()
-}
+        const code = msg.code
+        console.log('✅ Session created:', code)
+        sessionCodeRef.current = code
+        setSessionCode(code)
+        setStatus('live')
+        
+        // Start audio capture with session code
+        setTimeout(() => {
+          startAudioCapture(code)
+        }, 300)
+      }
 
       if (msg.type === 'transcript_update') {
         setTranscript(msg.text)
@@ -55,13 +60,15 @@ export default function Lecturer() {
     }
   }
 
-  const startAudioCapture = async () => {
+  const startAudioCapture = async (code) => {
+    console.log('🎤 Starting audio capture for session:', code)
+    
     if (!audioRef.current) {
       audioRef.current = new AudioCapture()
     }
 
     const success = await audioRef.current.start((audioChunk) => {
-      sendAudioToServer(audioChunk)
+      sendAudioToServer(audioChunk, code)
     })
 
     if (success) {
@@ -72,32 +79,32 @@ export default function Lecturer() {
     }
   }
 
-  const sendAudioToServer = (audioChunk) => {
-  if (!sessionCode) {
-    console.log('❌ No session code');
-    return;
-  }
-  if (!wsRef.current) {
-    console.log('❌ No WebSocket');
-    return;
-  }
-  if (wsRef.current.readyState !== WebSocket.OPEN) {
-    console.log('❌ WebSocket not open, state:', wsRef.current.readyState);
-    return;
-  }
+  const sendAudioToServer = (audioChunk, code) => {
+    if (!code) {
+      console.log('❌ No session code')
+      return
+    }
+    if (!wsRef.current) {
+      console.log('❌ No WebSocket')
+      return
+    }
+    if (wsRef.current.readyState !== WebSocket.OPEN) {
+      console.log('❌ WebSocket not open, state:', wsRef.current.readyState)
+      return
+    }
 
-  console.log('📤 Sending audio chunk, size:', audioChunk.size);
-  
-  const reader = new FileReader()
-  reader.onload = () => {
-    console.log('📤 FileReader loaded, sending to server');
-    wsRef.current.send(reader.result)
+    console.log('📤 Sending audio chunk, size:', audioChunk.size)
+    
+    const reader = new FileReader()
+    reader.onload = () => {
+      console.log('📤 Sending to server')
+      wsRef.current.send(reader.result)
+    }
+    reader.onerror = () => {
+      console.error('❌ FileReader error')
+    }
+    reader.readAsArrayBuffer(audioChunk)
   }
-  reader.onerror = () => {
-    console.error('❌ FileReader error');
-  }
-  reader.readAsArrayBuffer(audioChunk)
-}
 
   const endSession = () => {
     if (audioRef.current) {
@@ -113,6 +120,7 @@ export default function Lecturer() {
     setStatus('idle')
     setSessionCode('')
     setTranscript('')
+    sessionCodeRef.current = null
   }
 
   useEffect(() => {
