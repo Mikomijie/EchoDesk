@@ -196,10 +196,10 @@ wss.on('connection', (ws) => {
         const { StreamingTranscriber } = require('assemblyai');
         
         streamingTranscriber = new StreamingTranscriber({
-          token: session.tempToken,
-          encoding: 'ogg_opus',
-          speechModel: 'best'
-        });
+  token: session.tempToken,
+  encoding: 'ogg_opus',
+  speechModel: 'universal-streaming-english'
+});
 
         streamingTranscriber.on('open', ({ id, expires_at }) => {
           console.log('🎤 StreamingTranscriber OPEN - ID:', id);
