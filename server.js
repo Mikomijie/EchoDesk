@@ -125,25 +125,25 @@ wss.on('connection', (ws) => {
   let streamingTranscriber = null;
 
   ws.on('message', async (data) => {
-  console.log('📨 Message received, size:', data.length);
-  
-  let msg;
-  try {
-    msg = JSON.parse(data.toString());
-    console.log('📨 Parsed message type:', msg.type);
-  } catch {
-    // Binary audio data
-    if (streamingTranscriber && role === 'lecturer') {
-      try {
-        streamingTranscriber.send(data);
-      } catch (err) {
-        console.error('Error sending audio to AssemblyAI:', err);
+    console.log('📨 Message received, size:', data.length);
+    
+    let msg;
+    try {
+      msg = JSON.parse(data.toString());
+      console.log('📨 Parsed message type:', msg.type);
+    } catch {
+      // Binary audio data
+      if (streamingTranscriber && role === 'lecturer') {
+        try {
+          streamingTranscriber.send(data);
+        } catch (err) {
+          console.error('Error sending audio to AssemblyAI:', err);
+        }
       }
+      return;
     }
-    return;
-  }
 
-  if (msg.type === 'create_session') {
+    if (msg.type === 'create_session') {
       role = 'lecturer';
       sessionCode = generateCode();
       sessions[sessionCode] = { 
@@ -197,13 +197,18 @@ wss.on('connection', (ws) => {
         
         streamingTranscriber = new StreamingTranscriber({
           token: session.tempToken,
-          encoding: 'ogg_opus'
+          encoding: 'ogg_opus',
+          speechModel: 'best'
+        });
+
+        streamingTranscriber.on('open', ({ id, expires_at }) => {
+          console.log('🎤 StreamingTranscriber OPEN - ID:', id);
         });
 
         streamingTranscriber.on('transcript', ({ transcript, is_final }) => {
-  console.log('🎯 Transcript event received:', { transcript, is_final });
-  if (transcript) {
-    console.log(`📝 ${is_final ? 'FINAL' : 'interim'}: ${transcript}`);
+          console.log('🎯 Transcript event received:', { transcript, is_final });
+          if (transcript) {
+            console.log(`📝 ${is_final ? 'FINAL' : 'interim'}: ${transcript}`);
             
             if (is_final) {
               session.transcript += transcript + ' ';
