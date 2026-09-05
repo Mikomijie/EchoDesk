@@ -140,61 +140,29 @@ wss.on('connection', (ws) => {
       return;
     }
 
-    if (msg.type === 'start_streaming') {
-  if (role !== 'lecturer' || !sessionCode) return;
-
-  const session = sessions[sessionCode];
-  if (!session || session.transcriber) return;
-
-  try {
-    const { StreamingTranscriber } = require('assemblyai');
-    
-    streamingTranscriber = new StreamingTranscriber({
-      token: session.tempToken,
-      encoding: 'ogg_opus'
-    });
-
-    streamingTranscriber.on('transcript', ({ transcript, is_final }) => {
-      if (transcript) {
-        console.log(`📝 ${is_final ? 'FINAL' : 'interim'}: ${transcript}`);
+    if (msg.type === 'create_session') {
+      role = 'lecturer';
+      sessionCode = generateCode();
+      sessions[sessionCode] = { 
+        lecturer: ws, 
+        students: [], 
+        transcript: '',
+        transcriber: null,
+        tempToken: null
+      };
+      
+      try {
+        const token = await client.streaming.createTemporaryToken({ expires_in_seconds: 600 });
+        sessions[sessionCode].tempToken = token;
         
-        if (is_final) {
-          session.transcript += transcript + ' ';
-        }
-        
-        broadcastToStudents(sessionCode, {
-          type: 'caption',
-          text: session.transcript,
-          interim: transcript && !is_final
-        });
-
-        if (session.lecturer && session.lecturer.readyState === WebSocket.OPEN) {
-          session.lecturer.send(JSON.stringify({
-            type: 'transcript_update',
-            text: session.transcript
-          }));
-        }
+        ws.send(JSON.stringify({ type: 'session_created', code: sessionCode, token: token }));
+        console.log(`✅ Session created: ${sessionCode}`);
+      } catch (err) {
+        console.error('Error creating temp token:', err);
+        ws.send(JSON.stringify({ type: 'error', message: 'Failed to create session' }));
       }
-    });
+    }
 
-    streamingTranscriber.on('error', (error) => {
-      console.error('❌ Streaming error:', error);
-    });
-
-    streamingTranscriber.on('close', () => {
-      console.log('Streaming closed');
-      streamingTranscriber = null;
-    });
-
-    streamingTranscriber.connect();
-    session.transcriber = streamingTranscriber;
-    
-    ws.send(JSON.stringify({ type: 'streaming_started' }));
-  } catch (err) {
-    console.error('Error starting streaming:', err);
-    ws.send(JSON.stringify({ type: 'error', message: 'Failed to start streaming' }));
-  }
-}
     if (msg.type === 'join_session') {
       role = 'student';
       sessionCode = msg.code?.toUpperCase();
@@ -224,14 +192,9 @@ wss.on('connection', (ws) => {
       try {
         const { StreamingTranscriber } = require('assemblyai');
         
-       streamingTranscriber = new StreamingTranscriber({
-  token: session.tempToken,
-  encoding: 'ogg_opus',
-  sampleRate: 16000
-});
-
-        streamingTranscriber.on('open', ({ id, expires_at }) => {
-          console.log(`🎤 Streaming session opened: ${id}`);
+        streamingTranscriber = new StreamingTranscriber({
+          token: session.tempToken,
+          encoding: 'ogg_opus'
         });
 
         streamingTranscriber.on('transcript', ({ transcript, is_final }) => {
@@ -261,8 +224,8 @@ wss.on('connection', (ws) => {
           console.error('❌ Streaming error:', error);
         });
 
-        streamingTranscriber.on('close', (code, reason) => {
-          console.log(`Streaming closed: ${code} ${reason}`);
+        streamingTranscriber.on('close', () => {
+          console.log('Streaming closed');
           streamingTranscriber = null;
         });
 
@@ -270,6 +233,7 @@ wss.on('connection', (ws) => {
         session.transcriber = streamingTranscriber;
         
         ws.send(JSON.stringify({ type: 'streaming_started' }));
+        console.log(`🎤 Streaming started for session ${sessionCode}`);
       } catch (err) {
         console.error('Error starting streaming:', err);
         ws.send(JSON.stringify({ type: 'error', message: 'Failed to start streaming' }));

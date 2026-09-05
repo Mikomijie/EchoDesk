@@ -22,30 +22,41 @@ export default function Lecturer() {
     wsRef.current = ws
 
     ws.onopen = () => {
-      console.log('✅ WebSocket connected');
-      ws.send(JSON.stringify({ type: 'create_session' }))
+      console.log('✅ WebSocket connected')
+      setTimeout(() => {
+        ws.send(JSON.stringify({ type: 'create_session' }))
+      }, 300)
     }
 
     ws.onmessage = (event) => {
-  const msg = JSON.parse(event.data)
+      const msg = JSON.parse(event.data)
 
-  if (msg.type === 'session_created') {
-    setSessionCode(msg.code)
-    setStatus('live')
-    // Start streaming on AssemblyAI
-    ws.send(JSON.stringify({ type: 'start_streaming' }))
-    startAudioCapture()
-  }
+      if (msg.type === 'session_created') {
+        setSessionCode(msg.code)
+        setStatus('live')
+        console.log('✅ Session created, starting audio...')
+        startAudioCapture()
+        
+        setTimeout(() => {
+          ws.send(JSON.stringify({ type: 'start_streaming' }))
+          console.log('✅ Start streaming message sent')
+        }, 500)
+      }
 
-  if (msg.type === 'transcript_update') {
-    setTranscript(msg.text)
-    console.log('📝 Transcript updated:', msg.text)
-  }
+      if (msg.type === 'streaming_started') {
+        console.log('✅ AssemblyAI streaming connected')
+      }
 
-  if (msg.type === 'streaming_started') {
-    console.log('✅ Streaming started')
-  }
-}
+      if (msg.type === 'transcript_update') {
+        setTranscript(msg.text)
+        console.log('📝 Transcript updated:', msg.text)
+      }
+
+      if (msg.type === 'error') {
+        console.error('❌ Server error:', msg.message)
+        setStatus('error')
+      }
+    }
 
     ws.onerror = (error) => {
       console.error('❌ WebSocket error:', error)
@@ -71,18 +82,14 @@ export default function Lecturer() {
   }
 
   const sendAudioToServer = (audioChunk) => {
-  if (!sessionCode || !wsRef.current) return
+    if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return
 
-  // Send audio with encoding info
-  wsRef.current.send(JSON.stringify({
-    type: 'audio_chunk',
-    encoding: 'ogg_opus',
-    code: sessionCode
-  }))
-  
-  // Then send the actual audio chunk
-  wsRef.current.send(audioChunk)
-}
+    const reader = new FileReader()
+    reader.onload = () => {
+      wsRef.current.send(reader.result)
+    }
+    reader.readAsArrayBuffer(audioChunk)
+  }
 
   const endSession = () => {
     if (audioRef.current) {
@@ -226,7 +233,7 @@ export default function Lecturer() {
           }}>
             <p style={{ fontSize: 14, color: '#0A1930',
               lineHeight: 1.8, whiteSpace: 'pre-wrap', margin: 0 }}>
-              {transcript || 'Transcript will appear here as you speak...'}
+              {transcript.length > 0 ? transcript : 'Transcript will appear here as you speak...'}
             </p>
           </div>
 
