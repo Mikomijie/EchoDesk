@@ -3,6 +3,8 @@ const express = require('express');
 const http = require('http');
 const WebSocket = require('ws');
 const { AssemblyAI } = require('assemblyai');
+const fs = require('fs');
+const path = require('path');
 
 const app = express();
 const server = http.createServer(app);
@@ -147,10 +149,21 @@ wss.on('connection', (ws) => {
             try {
               console.log('📝 Transcribing accumulated audio, size:', audioBuffer.length);
               
+              // Save to temp file
+              const tempFile = path.join('/tmp', `audio-${Date.now()}.webm`);
+              fs.writeFileSync(tempFile, audioBuffer);
+              console.log('💾 Saved to temp file:', tempFile);
+              
               const transcript = await client.transcripts.transcribe({
-  audio: audioBuffer,
-  encoding: 'webm'
-});
+                audio: tempFile
+              });
+              
+              // Clean up temp file
+              try {
+                fs.unlinkSync(tempFile);
+              } catch (e) {
+                console.log('Could not delete temp file');
+              }
               
               // CHECK STATUS FIRST
               if (transcript.status === 'error') {
