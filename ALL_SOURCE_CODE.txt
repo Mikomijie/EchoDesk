@@ -3130,6 +3130,7 @@ export default function Lecturer() {
   const [isRecording, setIsRecording] = useState(false)
   const wsRef = useRef(null)
   const audioRef = useRef(null)
+  const sessionCodeRef = useRef(null)
 
   const getServerUrl = () => {
     if (window.location.hostname === 'localhost') {
@@ -3138,38 +3139,42 @@ export default function Lecturer() {
     return 'wss://echodesk-server.onrender.com'
   }
 
- const startSession = () => {
-  setStatus('connecting')
-  const ws = new WebSocket(getServerUrl())
-  wsRef.current = ws
+  const startSession = () => {
+    setStatus('connecting')
+    const ws = new WebSocket(getServerUrl())
+    wsRef.current = ws
 
-  ws.onopen = () => {
-    console.log('✅ WebSocket connected');
-    setTimeout(() => {
+    ws.onopen = () => {
+      console.log('✅ WebSocket connected')
       ws.send(JSON.stringify({ type: 'create_session' }))
-    }, 300)
-  }
+    }
 
     ws.onmessage = (event) => {
-  const msg = JSON.parse(event.data)
+      const msg = JSON.parse(event.data)
 
-  if (msg.type === 'session_created') {
-    setSessionCode(msg.code)
-    setStatus('live')
-    // Start streaming on AssemblyAI
-    ws.send(JSON.stringify({ type: 'start_streaming' }))
-    startAudioCapture()
-  }
+      if (msg.type === 'session_created') {
+        const code = msg.code
+        console.log('✅ Session created:', code)
+        sessionCodeRef.current = code
+        setSessionCode(code)
+        setStatus('live')
+        
+        // Start audio capture with session code
+        setTimeout(() => {
+          startAudioCapture(code)
+        }, 300)
+      }
 
-  if (msg.type === 'transcript_update') {
-    setTranscript(msg.text)
-    console.log('📝 Transcript updated:', msg.text)
-  }
+      if (msg.type === 'transcript_update') {
+        setTranscript(msg.text)
+        console.log('📝 Transcript updated:', msg.text)
+      }
 
-  if (msg.type === 'streaming_started') {
-    console.log('✅ Streaming started')
-  }
-}
+      if (msg.type === 'error') {
+        console.error('❌ Server error:', msg.message)
+        setStatus('error')
+      }
+    }
 
     ws.onerror = (error) => {
       console.error('❌ WebSocket error:', error)
@@ -3177,13 +3182,15 @@ export default function Lecturer() {
     }
   }
 
-  const startAudioCapture = async () => {
+  const startAudioCapture = async (code) => {
+    console.log('🎤 Starting audio capture for session:', code)
+    
     if (!audioRef.current) {
       audioRef.current = new AudioCapture()
     }
 
     const success = await audioRef.current.start((audioChunk) => {
-      sendAudioToServer(audioChunk)
+      sendAudioToServer(audioChunk, code)
     })
 
     if (success) {
@@ -3194,19 +3201,32 @@ export default function Lecturer() {
     }
   }
 
-  const sendAudioToServer = (audioChunk) => {
-  if (!sessionCode || !wsRef.current) return
+  const sendAudioToServer = (audioChunk, code) => {
+    if (!code) {
+      console.log('❌ No session code')
+      return
+    }
+    if (!wsRef.current) {
+      console.log('❌ No WebSocket')
+      return
+    }
+    if (wsRef.current.readyState !== WebSocket.OPEN) {
+      console.log('❌ WebSocket not open, state:', wsRef.current.readyState)
+      return
+    }
 
-  // Send audio with encoding info
-  wsRef.current.send(JSON.stringify({
-    type: 'audio_chunk',
-    encoding: 'ogg_opus',
-    code: sessionCode
-  }))
-  
-  // Then send the actual audio chunk
-  wsRef.current.send(audioChunk)
-}
+    console.log('📤 Sending audio chunk, size:', audioChunk.size)
+    
+    const reader = new FileReader()
+    reader.onload = () => {
+      console.log('📤 Sending to server')
+      wsRef.current.send(reader.result)
+    }
+    reader.onerror = () => {
+      console.error('❌ FileReader error')
+    }
+    reader.readAsArrayBuffer(audioChunk)
+  }
 
   const endSession = () => {
     if (audioRef.current) {
@@ -3222,6 +3242,7 @@ export default function Lecturer() {
     setStatus('idle')
     setSessionCode('')
     setTranscript('')
+    sessionCodeRef.current = null
   }
 
   useEffect(() => {
@@ -3350,7 +3371,7 @@ export default function Lecturer() {
           }}>
             <p style={{ fontSize: 14, color: '#0A1930',
               lineHeight: 1.8, whiteSpace: 'pre-wrap', margin: 0 }}>
-              {transcript || 'Transcript will appear here as you speak...'}
+              {transcript.length > 0 ? transcript : 'Transcript will appear here as you speak...'}
             </p>
           </div>
 
@@ -3761,7 +3782,8 @@ export class AudioCapture {
 
       console.log('✅ Microphone access granted');
 
-      this.mediaRecorder = new MediaRecorder(this.stream);
+      const options = { mimeType: 'audio/webm;codecs=opus' };
+this.mediaRecorder = new MediaRecorder(this.stream, options);
       this.audioChunks = [];
       this.isRecording = true;
 
@@ -4834,9 +4856,9 @@ Here is a lecture transcript:
 
 Please provide:
 
-1. SUMMARY: Write exactly 5 clear bullet points summarizing the key topics covered. Each bullet must be a complete, meaningful sentence about what was actually discussed.
+1. SUMMARY: Write exactly 5 clear bullet points summarizing the key topics covered.
 
-2. QUESTIONS: Write exactly 5 exam-style practice questions based specifically on what was discussed. Mix definition, application, and critical thinking questions.
+2. QUESTIONS: Write exactly 5 exam-style practice questions based specifically on what was discussed.
 
 Format your response EXACTLY like this with no extra text:
 SUMMARY:
@@ -4887,79 +4909,86 @@ QUESTIONS:
 wss.on('connection', (ws) => {
   let role = null;
   let sessionCode = null;
-  let streamingTranscriber = null;
+  let audioBuffer = Buffer.alloc(0);
+  let transcribeTimeout = null;
 
   ws.on('message', async (data) => {
     let msg;
     try {
       msg = JSON.parse(data.toString());
     } catch {
-      // Binary audio data
-      if (streamingTranscriber && role === 'lecturer') {
-        try {
-          streamingTranscriber.send(data);
-        } catch (err) {
-          console.error('Error sending audio to AssemblyAI:', err);
-        }
+      // Binary audio data - accumulate and transcribe after 3 seconds
+      if (sessionCode && sessions[sessionCode]) {
+        audioBuffer = Buffer.concat([audioBuffer, Buffer.from(data)]);
+        console.log('🎵 Audio accumulated, total size:', audioBuffer.length);
+        
+        // Clear existing timeout
+        if (transcribeTimeout) clearTimeout(transcribeTimeout);
+        
+        // Set new timeout to transcribe after 3 seconds of silence
+        transcribeTimeout = setTimeout(async () => {
+          if (audioBuffer.length === 0) return;
+          
+          const session = sessions[sessionCode];
+          if (!session) return;
+          
+          try {
+            console.log('📝 Transcribing accumulated audio, size:', audioBuffer.length);
+            
+            const transcript = await client.transcripts.transcribe({
+              audio: audioBuffer
+            });
+            
+            // CHECK STATUS FIRST
+            if (transcript.status === 'error') {
+              console.error('❌ AssemblyAI Error:', transcript.error);
+              audioBuffer = Buffer.alloc(0);
+              return;
+            }
+            
+            if (transcript.text) {
+              console.log(`✅ TRANSCRIBED: ${transcript.text}`);
+              
+              session.transcript += transcript.text + ' ';
+              
+              broadcastToStudents(sessionCode, {
+                type: 'caption',
+                text: session.transcript
+              });
+
+              if (session.lecturer && session.lecturer.readyState === WebSocket.OPEN) {
+                session.lecturer.send(JSON.stringify({
+                  type: 'transcript_update',
+                  text: session.transcript
+                }));
+              }
+            }
+            
+            // Reset buffer
+            audioBuffer = Buffer.alloc(0);
+          } catch (err) {
+            console.error('❌ Transcription error:', err.message);
+            audioBuffer = Buffer.alloc(0);
+          }
+        }, 3000);
       }
       return;
     }
 
-    if (msg.type === 'start_streaming') {
-  if (role !== 'lecturer' || !sessionCode) return;
+    // JSON message handling
+    if (msg.type === 'create_session') {
+      role = 'lecturer';
+      sessionCode = generateCode();
+      sessions[sessionCode] = { 
+        lecturer: ws, 
+        students: [], 
+        transcript: ''
+      };
+      
+      ws.send(JSON.stringify({ type: 'session_created', code: sessionCode }));
+      console.log(`✅ Session created: ${sessionCode}`);
+    }
 
-  const session = sessions[sessionCode];
-  if (!session || session.transcriber) return;
-
-  try {
-    const { StreamingTranscriber } = require('assemblyai');
-    
-    streamingTranscriber = new StreamingTranscriber({
-      token: session.tempToken,
-      encoding: 'ogg_opus'
-    });
-
-    streamingTranscriber.on('transcript', ({ transcript, is_final }) => {
-      if (transcript) {
-        console.log(`📝 ${is_final ? 'FINAL' : 'interim'}: ${transcript}`);
-        
-        if (is_final) {
-          session.transcript += transcript + ' ';
-        }
-        
-        broadcastToStudents(sessionCode, {
-          type: 'caption',
-          text: session.transcript,
-          interim: transcript && !is_final
-        });
-
-        if (session.lecturer && session.lecturer.readyState === WebSocket.OPEN) {
-          session.lecturer.send(JSON.stringify({
-            type: 'transcript_update',
-            text: session.transcript
-          }));
-        }
-      }
-    });
-
-    streamingTranscriber.on('error', (error) => {
-      console.error('❌ Streaming error:', error);
-    });
-
-    streamingTranscriber.on('close', () => {
-      console.log('Streaming closed');
-      streamingTranscriber = null;
-    });
-
-    streamingTranscriber.connect();
-    session.transcriber = streamingTranscriber;
-    
-    ws.send(JSON.stringify({ type: 'streaming_started' }));
-  } catch (err) {
-    console.error('Error starting streaming:', err);
-    ws.send(JSON.stringify({ type: 'error', message: 'Failed to start streaming' }));
-  }
-}
     if (msg.type === 'join_session') {
       role = 'student';
       sessionCode = msg.code?.toUpperCase();
@@ -4980,75 +5009,9 @@ wss.on('connection', (ws) => {
       console.log(`✅ Student joined: ${sessionCode}`);
     }
 
-    if (msg.type === 'start_streaming') {
-      if (role !== 'lecturer' || !sessionCode) return;
-
-      const session = sessions[sessionCode];
-      if (!session || streamingTranscriber) return;
-
-      try {
-        const { StreamingTranscriber } = require('assemblyai');
-        
-       streamingTranscriber = new StreamingTranscriber({
-  token: session.tempToken,
-  encoding: 'ogg_opus',
-  sampleRate: 16000
-});
-
-        streamingTranscriber.on('open', ({ id, expires_at }) => {
-          console.log(`🎤 Streaming session opened: ${id}`);
-        });
-
-        streamingTranscriber.on('transcript', ({ transcript, is_final }) => {
-          if (transcript) {
-            console.log(`📝 ${is_final ? 'FINAL' : 'interim'}: ${transcript}`);
-            
-            if (is_final) {
-              session.transcript += transcript + ' ';
-            }
-            
-            broadcastToStudents(sessionCode, {
-              type: 'caption',
-              text: session.transcript,
-              interim: transcript && !is_final
-            });
-
-            if (session.lecturer && session.lecturer.readyState === WebSocket.OPEN) {
-              session.lecturer.send(JSON.stringify({
-                type: 'transcript_update',
-                text: session.transcript
-              }));
-            }
-          }
-        });
-
-        streamingTranscriber.on('error', (error) => {
-          console.error('❌ Streaming error:', error);
-        });
-
-        streamingTranscriber.on('close', (code, reason) => {
-          console.log(`Streaming closed: ${code} ${reason}`);
-          streamingTranscriber = null;
-        });
-
-        streamingTranscriber.connect();
-        session.transcriber = streamingTranscriber;
-        
-        ws.send(JSON.stringify({ type: 'streaming_started' }));
-      } catch (err) {
-        console.error('Error starting streaming:', err);
-        ws.send(JSON.stringify({ type: 'error', message: 'Failed to start streaming' }));
-      }
-    }
-
     if (msg.type === 'end_lecture') {
       const session = sessions[sessionCode];
       if (!session) return;
-
-      if (streamingTranscriber) {
-        streamingTranscriber.close();
-        streamingTranscriber = null;
-      }
 
       broadcastToStudents(sessionCode, {
         type: 'lecture_ended',
@@ -5061,10 +5024,7 @@ wss.on('connection', (ws) => {
   });
 
   ws.on('close', () => {
-    if (streamingTranscriber) {
-      streamingTranscriber.close();
-      streamingTranscriber = null;
-    }
+    if (transcribeTimeout) clearTimeout(transcribeTimeout);
     
     if (role === 'lecturer' && sessionCode && sessions[sessionCode]) {
       broadcastToStudents(sessionCode, { type: 'lecturer_disconnected' });

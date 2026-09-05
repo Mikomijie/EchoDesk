@@ -71,9 +71,9 @@ Please provide:
 
 1. SUMMARY: Write exactly 5 clear bullet points summarizing the key topics covered.
 
-2. QUESTIONS: Write exactly 5 exam-style practice questions based on the lecture.
+2. QUESTIONS: Write exactly 5 exam-style practice questions based specifically on what was discussed.
 
-Format:
+Format your response EXACTLY like this with no extra text:
 SUMMARY:
 - [bullet 1]
 - [bullet 2]
@@ -102,19 +102,19 @@ QUESTIONS:
 
     const summaryLines = summaryMatch
       ? summaryMatch[1].split('\n').filter(l => l.trim().startsWith('-')).map(l => l.replace(/^-\s*/, '').trim())
-      : ['Summary could not be generated.']
+      : ['Summary could not be generated. Please review the transcript below.']
 
     const questionLines = questionsMatch
       ? questionsMatch[1].split('\n').filter(l => l.trim().match(/^\d+\./)).map(l => l.replace(/^\d+\.\s*/, '').trim())
-      : ['What were the main topics?']
+      : ['What were the main topics covered in this lecture?']
 
     res.json({ summary: summaryLines, questions: questionLines });
 
   } catch (err) {
     console.error('OpenRouter error:', err.message);
     res.status(500).json({
-      summary: ['Error generating summary'],
-      questions: ['What were the main topics?']
+      summary: ['Could not generate summary. Please review the full transcript below.'],
+      questions: ['What were the main topics covered in this lecture?']
     });
   }
 });
@@ -151,6 +151,13 @@ wss.on('connection', (ws) => {
             const transcript = await client.transcripts.transcribe({
               audio: audioBuffer
             });
+            
+            // CHECK STATUS FIRST
+            if (transcript.status === 'error') {
+              console.error('❌ AssemblyAI Error:', transcript.error);
+              audioBuffer = Buffer.alloc(0);
+              return;
+            }
             
             if (transcript.text) {
               console.log(`✅ TRANSCRIBED: ${transcript.text}`);
@@ -201,7 +208,7 @@ wss.on('connection', (ws) => {
       const session = sessions[sessionCode];
 
       if (!session) {
-        ws.send(JSON.stringify({ type: 'error', message: 'Session not found.' }));
+        ws.send(JSON.stringify({ type: 'error', message: 'Session not found. Check the code and try again.' }));
         return;
       }
 
