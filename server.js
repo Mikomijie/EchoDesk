@@ -213,7 +213,7 @@ wss.on('connection', (ws) => {
             audioBuffer = Buffer.alloc(0);
             transcribeTimeout = null;
           }
-        }, 5000);
+        }, 3000);
       }
       return;
     }
