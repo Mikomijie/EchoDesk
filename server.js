@@ -138,82 +138,79 @@ wss.on('connection', (ws) => {
         audioBuffer = Buffer.concat([audioBuffer, Buffer.from(data)]);
         console.log('🎵 Audio accumulated, total size:', audioBuffer.length);
         
-        // Always clear old timeout and set new one
-        if (transcribeTimeout) {
-          clearTimeout(transcribeTimeout);
-          console.log('🔄 Resetting transcription timeout...');
-        }
-        
-        console.log('⏱️ Setting transcription timeout...');
-        transcribeTimeout = setTimeout(async () => {
-          if (audioBuffer.length === 0) {
-            transcribeTimeout = null;
-            return;
-          }
-          
-          const session = sessions[sessionCode];
-          if (!session) {
-            transcribeTimeout = null;
-            return;
-          }
-          
-          try {
-            console.log('📝 Transcribing accumulated audio, size:', audioBuffer.length);
-            
-            // Save to temp file
-            const tempFile = path.join('/tmp', `audio-${Date.now()}.webm`);
-            fs.writeFileSync(tempFile, audioBuffer);
-            console.log('💾 Saved to temp file:', tempFile);
-            
-            const transcript = await client.transcripts.transcribe({
-              audio: tempFile
-            });
-            
-            // Clean up temp file
-            try {
-              fs.unlinkSync(tempFile);
-            } catch (e) {
-              console.log('Could not delete temp file');
-            }
-            
-            // CHECK STATUS FIRST
-            if (transcript.status === 'error') {
-              console.error('❌ AssemblyAI Error:', transcript.error);
-              audioBuffer = Buffer.alloc(0);
+        // Only set timeout ONCE - don't reset on every chunk
+        if (!transcribeTimeout) {
+          console.log('⏱️ Setting transcription timeout...');
+          transcribeTimeout = setTimeout(async () => {
+            if (audioBuffer.length === 0) {
               transcribeTimeout = null;
               return;
             }
             
-            if (transcript.text) {
-              console.log(`✅ TRANSCRIBED: ${transcript.text}`);
-              
-              session.transcript += transcript.text + ' ';
-              
-              // Broadcast to students
-              console.log(`📢 Broadcasting to ${session.students.length} students`);
-              broadcastToStudents(sessionCode, {
-                type: 'caption',
-                text: session.transcript
-              });
-
-              // Update lecturer
-              if (session.lecturer && session.lecturer.readyState === WebSocket.OPEN) {
-                session.lecturer.send(JSON.stringify({
-                  type: 'transcript_update',
-                  text: session.transcript
-                }));
-              }
+            const session = sessions[sessionCode];
+            if (!session) {
+              transcribeTimeout = null;
+              return;
             }
             
-            // Reset buffer and timeout
-            audioBuffer = Buffer.alloc(0);
-            transcribeTimeout = null;
-          } catch (err) {
-            console.error('❌ Transcription error:', err.message);
-            audioBuffer = Buffer.alloc(0);
-            transcribeTimeout = null;
-          }
-        }, 3000);
+            try {
+              console.log('📝 Transcribing accumulated audio, size:', audioBuffer.length);
+              
+              // Save to temp file
+              const tempFile = path.join('/tmp', `audio-${Date.now()}.webm`);
+              fs.writeFileSync(tempFile, audioBuffer);
+              console.log('💾 Saved to temp file:', tempFile);
+              
+              const transcript = await client.transcripts.transcribe({
+                audio: tempFile
+              });
+              
+              // Clean up temp file
+              try {
+                fs.unlinkSync(tempFile);
+              } catch (e) {
+                console.log('Could not delete temp file');
+              }
+              
+              // CHECK STATUS FIRST
+              if (transcript.status === 'error') {
+                console.error('❌ AssemblyAI Error:', transcript.error);
+                audioBuffer = Buffer.alloc(0);
+                transcribeTimeout = null;
+                return;
+              }
+              
+              if (transcript.text) {
+                console.log(`✅ TRANSCRIBED: ${transcript.text}`);
+                
+                session.transcript += transcript.text + ' ';
+                
+                // Broadcast to students
+                console.log(`📢 Broadcasting to ${session.students.length} students`);
+                broadcastToStudents(sessionCode, {
+                  type: 'caption',
+                  text: session.transcript
+                });
+
+                // Update lecturer
+                if (session.lecturer && session.lecturer.readyState === WebSocket.OPEN) {
+                  session.lecturer.send(JSON.stringify({
+                    type: 'transcript_update',
+                    text: session.transcript
+                  }));
+                }
+              }
+              
+              // Reset buffer and timeout for next batch
+              audioBuffer = Buffer.alloc(0);
+              transcribeTimeout = null;
+            } catch (err) {
+              console.error('❌ Transcription error:', err.message);
+              audioBuffer = Buffer.alloc(0);
+              transcribeTimeout = null;
+            }
+          }, 3000);
+        }
       }
       return;
     }
